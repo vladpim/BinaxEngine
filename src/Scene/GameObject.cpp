@@ -363,6 +363,49 @@ bool GameObject::CanHavePhysics() const {
     return m_Parent == nullptr && m_Children.empty();
 }
 
+void GameObject::CalculateAABB(glm::vec3& outMin, glm::vec3& outMax) const {
+    if (!m_Mesh || m_Mesh->GetVertices().empty()) {
+        // дефолтный box размером 1x1x1
+        glm::mat4 m = GetTransformMatrix();
+        glm::vec3 corners[8] = {
+            glm::vec3(-0.5f,-0.5f,-0.5f), glm::vec3( 0.5f,-0.5f,-0.5f),
+            glm::vec3( 0.5f, 0.5f,-0.5f), glm::vec3(-0.5f, 0.5f,-0.5f),
+            glm::vec3(-0.5f,-0.5f, 0.5f), glm::vec3( 0.5f,-0.5f, 0.5f),
+            glm::vec3( 0.5f, 0.5f, 0.5f), glm::vec3(-0.5f, 0.5f, 0.5f)
+        };
+        outMin = glm::vec3( FLT_MAX);
+        outMax = glm::vec3(-FLT_MAX);
+        for (int i = 0; i < 8; ++i) {
+            glm::vec3 world = glm::vec3(m * glm::vec4(corners[i], 1.0f));
+            outMin = glm::min(outMin, world);
+            outMax = glm::max(outMax, world);
+        }
+        return;
+    }
+    // Вычисляем AABB по вершинам меша (лучше закэшировать локальный AABB в Mesh)
+    const auto& vertices = m_Mesh->GetVertices();
+    glm::vec3 localMin( FLT_MAX), localMax(-FLT_MAX);
+    for (const auto& v : vertices) {
+        localMin = glm::min(localMin, glm::vec3(v.Position[0], v.Position[1], v.Position[2]));
+        localMax = glm::max(localMax, glm::vec3(v.Position[0], v.Position[1], v.Position[2]));
+    }
+    glm::mat4 m = GetTransformMatrix();
+    outMin = glm::vec3( FLT_MAX);
+    outMax = glm::vec3(-FLT_MAX);
+    // 8 углов локального AABB
+    glm::vec3 corners[8] = {
+        localMin, glm::vec3(localMax.x, localMin.y, localMin.z),
+        glm::vec3(localMax.x, localMax.y, localMin.z), glm::vec3(localMin.x, localMax.y, localMin.z),
+        glm::vec3(localMin.x, localMin.y, localMax.z), glm::vec3(localMax.x, localMin.y, localMax.z),
+        localMax, glm::vec3(localMin.x, localMax.y, localMax.z)
+    };
+    for (int i = 0; i < 8; ++i) {
+        glm::vec3 world = glm::vec3(m * glm::vec4(corners[i], 1.0f));
+        outMin = glm::min(outMin, world);
+        outMax = glm::max(outMax, world);
+    }
+}
+
 void GameObject::Unparent() {
     if (!m_Parent) return;
 
@@ -404,3 +447,90 @@ void GameObject::ResetToInitialTransform() {
         m_rigidBody->setAngularVelocity(btVector3(0,0,0));
     }
 }
+
+
+// В самый конец файла:
+
+void GameObject::SetShaftEnabled(bool enabled) {
+    if (m_ShaftEnabled == enabled) return;
+    m_ShaftEnabled = enabled;
+    if (enabled) UpdateShaftMesh();
+}
+bool GameObject::GetShaftEnabled() const { return m_ShaftEnabled; }
+
+void GameObject::SetShaftIntensity(float intensity) {
+    m_ShaftIntensity = glm::clamp(intensity, 0.0f, 2.0f);
+}
+float GameObject::GetShaftIntensity() const { return m_ShaftIntensity; }
+
+void GameObject::SetShaftSoftness(float softness) {
+    m_ShaftSoftness = glm::clamp(softness, 0.2f, 2.0f);
+}
+float GameObject::GetShaftSoftness() const { return m_ShaftSoftness; }
+
+void GameObject::UpdateShaftMesh() {
+    if (GetLightType() != LT_SPOT) return;
+    float range = GetLightRange();
+    float angleDeg = GetLightAngleDeg();
+    float halfAngleRad = glm::radians(angleDeg) * 0.5f;
+    float radius = range * tanf(halfAngleRad);
+    int segments = 32;
+    
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+    
+    // Вершина конуса (в локальных координатах – начало луча)
+    Vertex tip;
+    tip.Position[0] = 0.0f;
+    tip.Position[1] = 0.0f;
+    tip.Position[2] = 0.0f;
+    tip.Normal[0] = 0.0f; tip.Normal[1] = 0.0f; tip.Normal[2] = -1.0f;
+    tip.TexCoords[0] = 0.5f; tip.TexCoords[1] = 1.0f;
+    tip.Tangent[0] = 1.0f; tip.Tangent[1] = 0.0f; tip.Tangent[2] = 0.0f;
+    vertices.push_back(tip);
+    
+    // Основание конуса – окружность в плоскости XY, на расстоянии -range по Z
+    for (int i = 0; i <= segments; ++i) {
+        float angle = 2.0f * 3.14159265359f * i / segments;
+        float x = radius * cosf(angle);
+        float y = radius * sinf(angle);
+        float u = (float)i / segments;
+        Vertex v;
+        v.Position[0] = x;
+        v.Position[1] = y;
+        v.Position[2] = -range;
+        v.Normal[0] = x / radius;
+        v.Normal[1] = y / radius;
+        v.Normal[2] = 0.0f;
+        v.TexCoords[0] = u;
+        v.TexCoords[1] = 0.0f;
+        v.Tangent[0] = -sinf(angle);
+        v.Tangent[1] = cosf(angle);
+        v.Tangent[2] = 0.0f;
+        vertices.push_back(v);
+    }
+    
+    // Индексы для боковых граней (треугольники: вершина – две соседние точки основания)
+    for (int i = 0; i < segments; ++i) {
+        indices.push_back(0);
+        indices.push_back(i + 1);
+        indices.push_back(i + 2);
+    }
+    
+    m_ShaftMesh = std::make_shared<Mesh>(vertices, indices);
+}
+
+void GameObject::SetLightRange(float range) {
+    m_LightRange = range;
+    if (m_ShaftEnabled) UpdateShaftMesh();
+}
+
+void GameObject::SetLightAngle(float angleDeg) {
+    m_LightAngle = glm::radians(angleDeg);
+    if (m_ShaftEnabled) UpdateShaftMesh();
+}
+
+void GameObject::SetShaftDensity(float density) {
+    m_ShaftDensity = glm::clamp(density, 0.0f, 1.0f);
+}
+float GameObject::GetShaftDensity() const { return m_ShaftDensity; }
