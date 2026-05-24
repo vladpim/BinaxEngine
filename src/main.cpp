@@ -10,6 +10,7 @@
 #include "Graphics/Primitives.h"
 #include "Scene/SceneManager.h"
 #include "Editor/EditorUI.h"
+#include "Scene/Frustum.h"
 
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
@@ -27,7 +28,7 @@ Shader gridShader;
 Shader gizmoShader;
 Shader skyboxShader;
 Shader depthShader;
-Shader screenFogShader;  // шейдер для пост-эффекта тумана
+Shader screenFogShader;
 
 Skybox skybox;
 
@@ -196,6 +197,13 @@ int main() {
         glm::mat4 projection = activeCamera->GetCameraProjectionMatrix(aspect);
         glm::mat4 view = activeCamera->GetCameraViewMatrix();
 
+        Frustum frustum;
+bool useCulling = activeCamera->GetFrustumCulling();
+if (useCulling) {
+    glm::mat4 viewProj = projection * view;
+    frustum.Update(viewProj);
+}
+
         // --- Находим направленный свет для карты теней ---
         glm::vec3 directionalLightPos(2.0f, 4.0f, 2.0f);
         glm::vec3 directionalLightDir = glm::vec3(-1.0f, -1.0f, 0.0f);
@@ -250,9 +258,6 @@ int main() {
         shader.SetVec3("viewPos", activeCamera->GetWorldPosition().x,
                                  activeCamera->GetWorldPosition().y,
                                  activeCamera->GetWorldPosition().z);
-        shader.SetFloat("shininess", settings.shininess);
-        shader.SetFloat("metallic", settings.metallic);
-        shader.SetFloat("roughness", settings.roughness);
         shader.SetFloat("ambientStrength", settings.ambientStrength);
         shader.SetBool("shadowsEnabled", settings.shadows_enabled);
         shader.SetFloat("shadowBias", settings.shadow_bias);
@@ -312,12 +317,18 @@ int main() {
             shader.SetFloat(prefix + "angle", lightUniforms[i].angle);
         }
 
-        if (settings.wireframe_mode)
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        else
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+if (settings.wireframe_mode)
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+else
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-        g_SceneManager.Render(shader);
+if (useCulling)
+    g_SceneManager.RenderWithCulling(shader, frustum);
+else
+    g_SceneManager.Render(shader);
+
+    g_SceneManager.RenderLightShafts(view, projection);
+
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         if (settings.enable_outline) {
