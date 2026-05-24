@@ -1,15 +1,20 @@
 #include "Graphics/Mesh.h"
 #include <iostream>
 #include <stb_image.h>
+#include <glm/gtc/type_ptr.hpp>
 
 Mesh::Mesh(const std::vector<Vertex>& vertices,
            const std::vector<unsigned int>& indices,
            const std::string& diffusePath,
            const std::string& normalPath)
-    : m_IndexCount(indices.size()) {
+    : m_IndexCount(indices.size())
+{
     SetupMesh(vertices, indices);
-    if (!diffusePath.empty()) m_DiffuseTexture = LoadTexture(diffusePath);
-    if (!normalPath.empty()) m_NormalTexture = LoadTexture(normalPath);
+    m_Vertices = vertices;
+    if (!diffusePath.empty())
+        m_DiffuseTexture = LoadTexture(diffusePath);
+    if (!normalPath.empty())
+        m_NormalTexture = LoadTexture(normalPath);
 }
 
 Mesh::~Mesh() {
