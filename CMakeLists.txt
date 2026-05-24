@@ -103,6 +103,7 @@ set(SOURCES
     src/Scene/GameObject.cpp
     src/Scene/SceneManager.cpp
     src/Scene/Camera.cpp
+    src/Scene/Frustum.cpp
     src/Editor/EditorUI.cpp
     src/Physics/PhysicsWorld.cpp
     ${IMGUI_DIR}/imgui.cpp
