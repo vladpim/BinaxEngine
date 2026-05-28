@@ -441,9 +441,6 @@ if (ImGui::MenuItem("Point Light")) {
         light->SetLightColor(glm::vec3(1.0f, 1.0f, 0.8f));
         light->SetLightIntensity(2.0f);
         light->SetLightRange(8.0f);
-        // Для визуализации можно добавить меш-сферу (опционально)
-        light->SetMesh(Primitives::CreateSphere(16));
-        light->SetScale(glm::vec3(0.2f));
     }
 }
 if (ImGui::MenuItem("Spot Light")) {
@@ -455,29 +452,25 @@ if (ImGui::MenuItem("Spot Light")) {
         light->SetLightColor(glm::vec3(1.0f, 0.5f, 0.2f));
         light->SetLightIntensity(3.0f);
         light->SetLightRange(12.0f);
-        light->SetLightAngle(30.0f); // градусов
-        light->SetMesh(Primitives::CreateCone(16));
-        light->SetScale(glm::vec3(0.3f));
+        light->SetLightAngle(30.0f);
     }
 }
 
 if (ImGui::MenuItem("Base Fog")) {
     auto fog = m_SceneManager->CreateGameObject("Base Fog");
     fog->SetIsFog(true);
-    fog->SetFogEnabled(false);   // по умолчанию выключен
-    fog->SetColor(glm::vec3(0.5f, 0.6f, 0.7f)); // цвет для иконки в иерархии
-    // Не даём меш, чтобы не было визуального представления (только компонент)
+    fog->SetFogEnabled(false);
+    fog->SetColor(glm::vec3(0.5f, 0.6f, 0.7f));
 }
 
 if (ImGui::MenuItem("Camera")) {
     auto camera = m_SceneManager->CreateGameObject("Camera");
     camera->SetIsCamera(true);
     camera->SetPosition(glm::vec3(0.0f, 2.0f, 5.0f));
-    camera->SetRotation(glm::vec3(0.0f, -90.0f, 0.0f)); // чтобы смотрела в -Z
+    camera->SetRotation(glm::vec3(0.0f, -90.0f, 0.0f));
     camera->SetCameraFOV(45.0f);
     camera->SetCameraNear(0.1f);
     camera->SetCameraFar(100.0f);
-    // НЕ вызываем SetMesh
 }
 
     ImGui::Separator();
@@ -614,6 +607,10 @@ void EditorUI::DrawInspector() {
                     if (ImGui::Button("Switch to this camera"))
                         m_SceneManager->SetActiveCamera(selected);
                 }
+                bool showGizmo = selected->GetShowFrustumGizmo();
+if (ImGui::Checkbox("Show Frustum Gizmo", &showGizmo)) {
+    selected->SetShowFrustumGizmo(showGizmo);
+}
             } else {   // <-- теперь else правильно привязан к if (selected->IsCamera())
                 // Для не-камер – все остальные секции
                 if (ImGui::CollapsingHeader("Appearance", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -649,6 +646,11 @@ void EditorUI::DrawInspector() {
                                 selected->SetLightRange(range);
                             }
                         }
+                        ImGui::Separator();
+bool showGizmo = selected->GetShowLightGizmo();
+if (ImGui::Checkbox("Show Gizmo", &showGizmo)) {
+    selected->SetShowLightGizmo(showGizmo);
+}
                         if (lightType == LT_SPOT) {
                             float angle = selected->GetLightAngleDeg();
                             if (ImGui::SliderFloat("Angle (deg)", &angle, 5.0f, 120.0f)) {
@@ -660,6 +662,11 @@ void EditorUI::DrawInspector() {
                                 selected->SetLightDirection(glm::normalize(dir));
                             }
                             // после настройки угла и направления
+                            ImGui::Separator();
+bool showGizmo = selected->GetShowLightGizmo();
+if (ImGui::Checkbox("Show Gizmo", &showGizmo)) {
+    selected->SetShowLightGizmo(showGizmo);
+}
 ImGui::Separator();
 ImGui::Text("Fake Volumetric Cone");
 bool shaft = selected->GetShaftEnabled();
