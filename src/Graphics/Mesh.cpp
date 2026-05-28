@@ -88,6 +88,6 @@ GLuint Mesh::LoadTexture(const std::string& path) {
 void Mesh::Draw() const {
     if (VAO == 0 || m_IndexCount == 0) return;
     glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, (GLsizei)m_IndexCount, GL_UNSIGNED_INT, 0);
+    glDrawElements(m_DrawMode, (GLsizei)m_IndexCount, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
