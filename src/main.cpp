@@ -1,3 +1,4 @@
+#include <stb_image.h>
 #include <iostream>
 #include <vector>
 #include <GL/glew.h>
@@ -11,6 +12,7 @@
 #include "Scene/SceneManager.h"
 #include "Editor/EditorUI.h"
 #include "Scene/Frustum.h"
+#include "Physics/PhysicsWorld.h"
 
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
@@ -107,6 +109,31 @@ void renderFullScreenQuad() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
+// Загрузка cubemap (должна быть вне main)
+unsigned int LoadCubemap(const std::vector<std::string>& faces) {
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < faces.size(); i++) {
+        unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+        if (data) {
+            GLenum format = (nrChannels == 4) ? GL_RGBA : GL_RGB;
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+            stbi_image_free(data);
+        } else {
+            std::cerr << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+    return textureID;
+}
+
 int main() {
     std::cout << "=== Binax Engine Editor ===" << std::endl;
 
@@ -156,13 +183,23 @@ int main() {
     initPostProcessing(SCR_WIDTH, SCR_HEIGHT);
 
     skybox.Load(
-        "resources/embedded_assets/skybox/right.png",
-        "resources/embedded_assets/skybox/left.png",
-        "resources/embedded_assets/skybox/top.png",
-        "resources/embedded_assets/skybox/bottom.png",
-        "resources/embedded_assets/skybox/front.png",
-        "resources/embedded_assets/skybox/back.png"
-    );
+    "resources/embedded_assets/skybox/right.png",
+    "resources/embedded_assets/skybox/left.png",
+    "resources/embedded_assets/skybox/top.png",
+    "resources/embedded_assets/skybox/bottom.png",
+    "resources/embedded_assets/skybox/front.png",
+    "resources/embedded_assets/skybox/back.png"
+);
+
+    std::vector<std::string> faces = {
+    "resources/embedded_assets/skybox/right.png",
+    "resources/embedded_assets/skybox/left.png",
+    "resources/embedded_assets/skybox/top.png",
+    "resources/embedded_assets/skybox/bottom.png",
+    "resources/embedded_assets/skybox/front.png",
+    "resources/embedded_assets/skybox/back.png"
+};
+unsigned int envCubemap = LoadCubemap(faces);
 
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = static_cast<float>(glfwGetTime());
@@ -233,12 +270,13 @@ if (useCulling) {
 
         // Скайбокс
         glDepthMask(GL_FALSE);
-        skyboxShader.Use();
-        glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(view));
-        skyboxShader.SetMat4("view", glm::value_ptr(viewNoTranslation));
-        skyboxShader.SetMat4("projection", glm::value_ptr(projection));
-        skybox.Draw();
-        glDepthMask(GL_TRUE);
+skyboxShader.Use();
+skyboxShader.SetInt("skybox", 0);   // <--- добавьте эту строку
+glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(view));
+skyboxShader.SetMat4("view", glm::value_ptr(viewNoTranslation));
+skyboxShader.SetMat4("projection", glm::value_ptr(projection));
+skybox.Draw();
+glDepthMask(GL_TRUE);
 
         // Сетка
         if (settings.grid_enabled) {
@@ -267,6 +305,9 @@ if (useCulling) {
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, depthMap);
         shader.SetInt("shadowMap", 2);
+        glActiveTexture(GL_TEXTURE6);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+        shader.SetInt("environmentMap", 6);
 
         // Передача источников света
         struct LightUniform {
@@ -331,17 +372,6 @@ else
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-        if (settings.enable_outline) {
-            g_SceneManager.RenderOutline(
-                gizmoShader,
-                view, projection,
-                glm::vec3(settings.outlineColor[0], settings.outlineColor[1], settings.outlineColor[2]),
-                settings.outlineMode,
-                settings.outlinePointSize,
-                settings.outlineFillAlpha
-            );
-        }
-
         // --- Пост-эффект тумана ---
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClear(GL_DEPTH_BUFFER_BIT); // очищаем только глубину
@@ -385,6 +415,7 @@ if (fogObj && fogObj->GetFogEnabled()) {
     }
 
     g_EditorUI.Shutdown();
+    PhysicsWorld::GetInstance().Shutdown();
     glfwDestroyWindow(window);
     glfwTerminate();
     std::cout << "Binax Engine shutdown successfully." << std::endl;
