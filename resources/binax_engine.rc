@@ -17,7 +17,7 @@ BEGIN
     BEGIN
         BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName",      "VladvPim"
+            VALUE "CompanyName",      "VladPim"
             VALUE "FileDescription",  "BinaxEngine"
             VALUE "FileVersion",      "0.6.2.0"
             VALUE "InternalName",     "BinaxEngine"
