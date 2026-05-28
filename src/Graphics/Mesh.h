@@ -28,6 +28,7 @@ public:
     void SetName(const std::string& name) { m_Name = name; }
     std::string GetName() const { return m_Name; }
     const std::vector<Vertex>& GetVertices() const { return m_Vertices; }
+    void SetDrawMode(GLenum mode) { m_DrawMode = mode; }
 
 private:
     GLuint VAO = 0, VBO = 0, EBO = 0;
@@ -41,4 +42,5 @@ private:
     void SetupMesh(const std::vector<Vertex>& vertices,
                    const std::vector<unsigned int>& indices);
     GLuint LoadTexture(const std::string& path);
+    GLenum m_DrawMode = GL_TRIANGLES;
 };
