@@ -24,8 +24,6 @@ public:
     void Update(float deltaTime);
     void Render(Shader& shader);
     void RenderDepth(Shader& depthShader);
-    void RenderOutline(Shader& outlineShader, const glm::mat4& view, const glm::mat4& projection, 
-                       const glm::vec3& color, int mode, float pointSize, float fillAlpha);
   
     std::shared_ptr<GameObject> CreateGameObject(const std::string& name);
     void DeleteGameObject(GameObject* object);
