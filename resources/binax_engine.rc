@@ -5,8 +5,8 @@
 IDI_ICON ICON "ico/binax.ico"
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION     0,6,0,0
-PRODUCTVERSION  0,6,0,0
+FILEVERSION     0,6,2,0
+PRODUCTVERSION  0,6,2,0
 FILEFLAGSMASK   0x3fL
 FILEFLAGS       0x0L
 FILEOS          VOS_NT_WINDOWS32
@@ -17,14 +17,14 @@ BEGIN
     BEGIN
         BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName",      "VladislavPim"
+            VALUE "CompanyName",      "VladvPim"
             VALUE "FileDescription",  "BinaxEngine"
-            VALUE "FileVersion",      "0.6.0.0"
+            VALUE "FileVersion",      "0.6.2.0"
             VALUE "InternalName",     "BinaxEngine"
-            VALUE "LegalCopyright",   "Copyright (C) 2026 VladislavPim"
+            VALUE "LegalCopyright",   "Copyright (C) 2026 VladPim"
             VALUE "OriginalFilename", "BinaxEngine.exe"
             VALUE "ProductName",      "BinaxEngine"
-            VALUE "ProductVersion",   "0.6.0.0"
+            VALUE "ProductVersion",   "0.6.2.0"
         END
     END
     BLOCK "VarFileInfo"
