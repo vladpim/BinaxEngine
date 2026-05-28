@@ -31,7 +31,7 @@ This release introduces major features: physics, advanced materials, model impor
 - **Hotkeys** – Ctrl+S (save), Ctrl+D (duplicate), Delete (remove object), G (toggle grid), T/R/E (gizmo mode), X (gizmo local/world), ESC (release mouse)
 
 ### 🎨 Graphics & Rendering
-- **OpenGL 4.6 core profile** with MSAA (4x)
+- **OpenGL 3.3 core profile**
 - **PBR materials** – metallic, roughness, ambient occlusion, emission
 - **Normal mapping** with adjustable strength
 - **Texture support** – diffuse, normal, roughness, metallic, AO (load via file dialog)
