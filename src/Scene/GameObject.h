@@ -32,7 +32,7 @@ public:
 
     void AddChild(std::shared_ptr<GameObject> child);
     void RemoveChild(GameObject* child);
-    GameObject* GetParent() const { return m_Parent; }
+    std::shared_ptr<GameObject> GetParent() const { return m_Parent.lock(); }
     const std::vector<std::shared_ptr<GameObject>>& GetChildren() const { return m_Children; }
     bool CanHavePhysics() const;
     void Unparent();  // открепить от родителя, сохранив мировую трансформацию
@@ -137,7 +137,7 @@ public:
 
 private:
     std::string m_Name;
-    GameObject* m_Parent = nullptr;
+    std::weak_ptr<GameObject> m_Parent;
     std::vector<std::shared_ptr<GameObject>> m_Children;
     glm::vec3 m_Position = glm::vec3(0.0f);
     glm::vec3 m_Rotation = glm::vec3(0.0f);
