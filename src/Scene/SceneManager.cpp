@@ -24,7 +24,7 @@ void SceneManager::Initialize() {
     if (m_Initialized) return;
     std::cout << "Initializing SceneManager..." << std::endl;
 
-    m_GridMesh = Primitives::CreateGrid(500);   // 500x500 юнитов
+    m_GridMesh = Primitives::CreateGridLines(500, 1.0f);
 
     
     m_ShaftShader.Load("assets/shaders/shaft.vert", "assets/shaders/shaft.frag");
@@ -141,45 +141,6 @@ void SceneManager::RenderDepth(Shader& depthShader) {
     }
 }
 
-void SceneManager::RenderOutline(Shader& outlineShader, const glm::mat4& view, const glm::mat4& projection, 
-                                 const glm::vec3& color, int mode, float pointSize, float fillAlpha) {
-    if (!m_SelectedObject || !m_SelectedObject->IsVisible() || !m_SelectedObject->GetMesh()) return;
-
-    GLboolean depthTestEnabled;
-    glGetBooleanv(GL_DEPTH_TEST, &depthTestEnabled);
-    glDisable(GL_DEPTH_TEST);
-
-    outlineShader.Use();
-    outlineShader.SetMat4("view", glm::value_ptr(view));
-    outlineShader.SetMat4("projection", glm::value_ptr(projection));
-    outlineShader.SetVec3("outlineColor", color.x, color.y, color.z); // Добавляем
-
-    glm::mat4 transform = m_SelectedObject->GetTransformMatrix();
-    glm::vec3 scale = m_SelectedObject->GetScale();
-    glm::vec3 biggerScale = scale * 1.05f;
-    glm::mat4 outlineTransform = glm::scale(transform, biggerScale / scale);
-    outlineShader.SetMat4("model", glm::value_ptr(outlineTransform));
-
-    if (mode == 0) { // Wireframe
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        m_SelectedObject->GetMesh()->Draw();
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    }
-    else if (mode == 1) { // Vertices
-        glPointSize(pointSize);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-        m_SelectedObject->GetMesh()->Draw();
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    }
-    else if (mode == 2) { // Fill
-        outlineShader.SetFloat("alpha", fillAlpha);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        m_SelectedObject->GetMesh()->Draw();
-    }
-
-    if (depthTestEnabled) glEnable(GL_DEPTH_TEST);
-}
-
 bool SceneManager::HasDirectionalLight() const {
     for (const auto& obj : m_Objects) {
         if (obj->GetName() == "DirectionalLight") {
@@ -210,13 +171,6 @@ void SceneManager::MoveActiveCamera(float forwardBack, float leftRight, float up
     glm::vec3 forward = glm::normalize(glm::vec3(transform[2]));   // ось Z (куда смотрит камера)
     glm::vec3 right   = glm::normalize(glm::vec3(transform[0]));   // ось X
     glm::vec3 up      = glm::normalize(glm::vec3(transform[1]));   // ось Y
-
-    // В OpenGL камера по умолчанию смотрит в -Z, но матрица модели камеры хранит её ориентацию.
-    // Чтобы двигаться вперёд по направлению взгляда, нужно использовать -forward, если камера смотрит в -Z.
-    // Однако проще: используем forward как есть, а при необходимости инвертируем знак.
-    // Проверим: если объект камеры повёрнут так, что его локальная ось Z направлена вперёд,
-    // то forward = transform[2] уже указывает вперёд. Для единообразия сделаем так:
-
     glm::vec3 move = forward * forwardBack + right * leftRight + up * upDown;
     glm::vec3 newPos = m_ActiveCamera->GetPosition() + move * speed;
     m_ActiveCamera->SetPosition(newPos);
@@ -251,6 +205,10 @@ void SceneManager::RenderGrid(Shader& shader, const glm::mat4& view, const glm::
     shader.Use();
     shader.SetMat4("view", glm::value_ptr(view));
     shader.SetMat4("projection", glm::value_ptr(projection));
+    // Получаем позицию камеры из матрицы view (обратная матрица)
+    glm::mat4 invView = glm::inverse(view);
+    glm::vec3 viewPos = glm::vec3(invView[3]);
+    shader.SetVec3("viewPos", viewPos.x, viewPos.y, viewPos.z);   // <--- ДОБАВИТЬ
     glm::mat4 model = glm::mat4(1.0f);
     shader.SetMat4("model", glm::value_ptr(model));
     glEnable(GL_BLEND);
@@ -261,10 +219,10 @@ void SceneManager::RenderGrid(Shader& shader, const glm::mat4& view, const glm::
 
 void SceneManager::InitializePhysics() {
     PhysicsWorld::GetInstance().Initialize();
-    // Теперь мир существует, пересоздаём тела для всех объектов с коллайдером
     for (auto& obj : m_Objects) {
         if (obj->GetColliderType() != COLLIDER_NONE) {
-            obj->UpdatePhysicsBody();  // создаст тело (статическое или динамическое)
+            obj->UpdatePhysicsBody();
+            obj->SyncPhysicsToTransform();   // обязательно
         }
     }
 }
