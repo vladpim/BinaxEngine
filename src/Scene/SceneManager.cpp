@@ -324,6 +324,218 @@ void SceneManager::RenderLightShafts(const glm::mat4& view, const glm::mat4& pro
     glDisable(GL_BLEND);
 }
 
+void SceneManager::RenderFrustumGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection,
+                                       const GameObject* activeCamera) const {
+    if (!m_Initialized) return;
+    
+    for (const auto& obj : m_Objects) {
+        if (!obj->IsCamera()) continue;
+        if (obj.get() == activeCamera) continue;
+        if (!obj->GetShowFrustumGizmo()) continue;
+        
+        // Позиция и направление
+        glm::vec3 pos = obj->GetWorldPosition();
+        glm::vec3 forward = glm::normalize(glm::vec3(obj->GetTransformMatrix()[2]));
+        glm::vec3 right = glm::normalize(glm::vec3(obj->GetTransformMatrix()[0]));
+        glm::vec3 up = glm::normalize(glm::vec3(obj->GetTransformMatrix()[1]));
+        
+        // Длина "луча" гимо – фиксированная, например 1.5 метра
+        float gizmoLength = 1.5f;
+        glm::vec3 tipPos = pos + forward * gizmoLength;
+        
+        // Размер основания пирамидки (ширина и высота в конце луча)
+        float baseSize = 0.25f;
+        float halfBase = baseSize * 0.5f;
+        
+        // Точки основания (квадрат, перпендикулярный направлению)
+        glm::vec3 baseCenter = tipPos; // можно сместить назад для усечённого конуса, но пусть будет на конце
+        glm::vec3 baseUp = up;
+        glm::vec3 baseRight = right;
+        
+        glm::vec3 v1 = baseCenter + baseUp * halfBase + baseRight * halfBase; // верх-право
+        glm::vec3 v2 = baseCenter + baseUp * halfBase - baseRight * halfBase; // верх-лево
+        glm::vec3 v3 = baseCenter - baseUp * halfBase - baseRight * halfBase; // низ-лево
+        glm::vec3 v4 = baseCenter - baseUp * halfBase + baseRight * halfBase; // низ-право
+        
+        // Собираем линии: от основания к вершине (позиция камеры) и рёбра основания
+        std::vector<glm::vec3> lines;
+        // 4 линии от основания к вершине
+        lines.push_back(v1); lines.push_back(pos);
+        lines.push_back(v2); lines.push_back(pos);
+        lines.push_back(v3); lines.push_back(pos);
+        lines.push_back(v4); lines.push_back(pos);
+        // 4 ребра основания
+        lines.push_back(v1); lines.push_back(v2);
+        lines.push_back(v2); lines.push_back(v3);
+        lines.push_back(v3); lines.push_back(v4);
+        lines.push_back(v4); lines.push_back(v1);
+        
+        // Рисуем линии
+        static GLuint lineVAO = 0, lineVBO = 0;
+        if (lineVAO == 0) {
+            glGenVertexArrays(1, &lineVAO);
+            glGenBuffers(1, &lineVBO);
+            glBindVertexArray(lineVAO);
+            glBindBuffer(GL_ARRAY_BUFFER, lineVBO);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+            glEnableVertexAttribArray(0);
+        }
+        
+        glBindBuffer(GL_ARRAY_BUFFER, lineVBO);
+        glBufferData(GL_ARRAY_BUFFER, lines.size() * sizeof(glm::vec3), lines.data(), GL_DYNAMIC_DRAW);
+        
+        shader.Use();
+        shader.SetMat4("model", glm::value_ptr(glm::mat4(1.0f)));
+        shader.SetMat4("view", glm::value_ptr(view));
+        shader.SetMat4("projection", glm::value_ptr(projection));
+        shader.SetVec3("color", 1.0f, 1.0f, 1.0f); // белый
+        
+        glLineWidth(2.0f); // чуть толще для видимости
+        glBindVertexArray(lineVAO);
+        glDrawArrays(GL_LINES, 0, (GLsizei)lines.size());
+        glBindVertexArray(0);
+        glLineWidth(1.0f); // вернуть обратно
+    }
+}
+
+void SceneManager::RenderLightGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection) const {
+    if (!m_Initialized) return;
+
+    // ========== 1. ПРЕДРАСЧЁТ ГЕОМЕТРИИ (ОДИН РАЗ) ==========
+    static std::vector<glm::vec3> circleXY, circleXZ, circleYZ;
+    static std::vector<glm::vec3> coneCircle;    // для основания конуса
+    static std::vector<glm::vec2> coneUnit;      // единичные точки для конуса (16 сегментов)
+    static bool init = false;
+    if (!init) {
+        const int pointSegments = 32;   // для сферы (3 окружности)
+        const int coneSegments = 16;    // для конуса
+
+        // Единичные точки для сферы (в плоскостях)
+        for (int i = 0; i <= pointSegments; ++i) {
+            float angle = 2.0f * 3.14159265359f * i / pointSegments;
+            float x = cosf(angle);
+            float y = sinf(angle);
+            circleXY.emplace_back(x, y, 0.0f);
+            circleXZ.emplace_back(x, 0.0f, y);
+            circleYZ.emplace_back(0.0f, x, y);
+        }
+        // Единичные точки для конуса (2D, для умножения на right/up)
+        for (int i = 0; i <= coneSegments; ++i) {
+            float angle = 2.0f * 3.14159265359f * i / coneSegments;
+            coneUnit.emplace_back(cosf(angle), sinf(angle));
+        }
+        init = true;
+    }
+
+    // ========== 2. СТАТИЧЕСКИЙ VBO (САМОРАСШИРЯЮЩИЙСЯ) ==========
+    static GLuint lineVAO = 0, lineVBO = 0;
+    static size_t vboCapacity = 0;  // в байтах
+
+    if (lineVAO == 0) {
+        glGenVertexArrays(1, &lineVAO);
+        glGenBuffers(1, &lineVBO);
+        glBindVertexArray(lineVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, lineVBO);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+
+    // Собираем все линии в один вектор
+    std::vector<glm::vec3> allLines;
+    allLines.reserve(20000);   // хватит для большинства сцен
+
+    for (const auto& obj : m_Objects) {
+        int lightType = obj->GetLightType();
+        if (lightType == LT_NONE) continue;
+        if (!obj->GetShowLightGizmo()) continue;
+
+        if (lightType == LT_POINT) {
+            glm::vec3 center = obj->GetWorldPosition();
+            float radius = obj->GetLightRange();
+            if (radius <= 0.0f) radius = 0.1f;
+
+            // Вспомогательная лямбда для добавления готовой окружности
+            auto addCircle = [&](const std::vector<glm::vec3>& unitCircle) {
+                for (size_t i = 0; i < unitCircle.size() - 1; ++i) {
+                    glm::vec3 p1 = center + unitCircle[i] * radius;
+                    glm::vec3 p2 = center + unitCircle[i+1] * radius;
+                    allLines.push_back(p1);
+                    allLines.push_back(p2);
+                }
+            };
+            addCircle(circleXY);
+            addCircle(circleXZ);
+            addCircle(circleYZ);
+        }
+        else if (lightType == LT_SPOT) {
+            glm::vec3 pos = obj->GetWorldPosition();
+            glm::vec3 dir = glm::normalize(obj->GetLightDirection());
+            float range = obj->GetLightRange();
+            float angleDeg = obj->GetLightAngleDeg();
+            float halfAngleRad = glm::radians(angleDeg) * 0.5f;
+            float radius = range * tanf(halfAngleRad);
+
+            // Базис для ориентации конуса
+            glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+            if (fabs(glm::dot(dir, up)) > 0.999f) up = glm::vec3(1.0f, 0.0f, 0.0f);
+            glm::vec3 right = glm::normalize(glm::cross(up, dir));
+            up = glm::normalize(glm::cross(dir, right));
+
+            glm::vec3 baseCenter = pos + dir * range;
+
+            // Генерируем точки основания из готовых единичных точек
+            std::vector<glm::vec3> circlePoints;
+            circlePoints.reserve(coneUnit.size());
+            for (const auto& uv : coneUnit) {
+                glm::vec3 offset = right * uv.x + up * uv.y;
+                circlePoints.push_back(baseCenter + offset * radius);
+            }
+
+            // Линии от вершины к каждой точке окружности
+            for (const auto& pt : circlePoints) {
+                allLines.push_back(pos);
+                allLines.push_back(pt);
+            }
+            // Линии окружности
+            for (size_t i = 0; i < circlePoints.size() - 1; ++i) {
+                allLines.push_back(circlePoints[i]);
+                allLines.push_back(circlePoints[i+1]);
+            }
+        }
+    }
+
+    if (allLines.empty()) return;
+
+    // ========== 3. ОБНОВЛЕНИЕ БУФЕРА ПО ТВОЕЙ ФИШКЕ ==========
+    size_t vertexCount = allLines.size();
+    size_t bufferSize = vertexCount * sizeof(glm::vec3);
+
+    glBindBuffer(GL_ARRAY_BUFFER, lineVBO);
+
+    if (bufferSize > vboCapacity) {
+        vboCapacity = bufferSize + 100000 * sizeof(glm::vec3);   // запас 100k вершин
+        glBufferData(GL_ARRAY_BUFFER, vboCapacity, nullptr, GL_DYNAMIC_DRAW);
+    }
+
+    glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, allLines.data());
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // ========== 4. РИСУЕМ ==========
+    shader.Use();
+    shader.SetMat4("model", glm::value_ptr(glm::mat4(1.0f)));
+    shader.SetMat4("view", glm::value_ptr(view));
+    shader.SetMat4("projection", glm::value_ptr(projection));
+    shader.SetVec3("color", 1.0f, 1.0f, 1.0f);
+
+    glLineWidth(1.5f);
+    glBindVertexArray(lineVAO);
+    glDrawArrays(GL_LINES, 0, (GLsizei)vertexCount);
+    glBindVertexArray(0);
+    glLineWidth(1.0f);
+}
+
 void SceneManager::SaveScene(const std::string& filename) {
     std::cout << "Saving scene to: " << filename << std::endl;
 }
