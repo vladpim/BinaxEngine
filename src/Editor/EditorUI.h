@@ -16,7 +16,6 @@ struct EditorSettings {
     bool wireframe_mode = false;
     bool grid_enabled = true;
     bool snap_to_grid = false;
-    bool enable_outline = false;
     bool skyboxSeamless = true;   // убирать стыки
     float grid_size = 1.0f;
     float bg_color[3] = {0.1f, 0.1f, 0.1f};
@@ -35,11 +34,6 @@ struct EditorSettings {
     float snapScale = 0.1f;
 
     bool vsync = true;  // по умолчанию включено
-
-    float outlineColor[3] = {0.95f, 0.55f, 0.15f};
-    int outlineMode = 0;
-    float outlinePointSize = 4.0f;
-    float outlineFillAlpha = 0.3f;
 
     int shadowMapSize = 2048;
     float shadowSoftness = 2.0f;
@@ -73,6 +67,7 @@ public:
     void DrawThemeEditor();
     void SetSkybox(Skybox* skybox) { m_Skybox = skybox; }
     bool IsGizmoActive() const { return m_GizmoActive; }
+    std::string SaveFileDialog(const char* filter, const char* defaultExt = "binaxmat");
     
 
 private:
@@ -120,6 +115,7 @@ private:
     glm::mat4 m_ProjectionMatrix = glm::mat4(1.0f);
     ImGuizmo::OPERATION m_CurrentGizmoOperation = ImGuizmo::TRANSLATE;
     ImGuizmo::MODE m_CurrentGizmoMode = ImGuizmo::WORLD;
+    
 
     EditorTheme m_Theme;
     Skybox* m_Skybox = nullptr;
