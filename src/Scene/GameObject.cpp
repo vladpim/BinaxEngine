@@ -12,47 +12,57 @@ GameObject::GameObject(const std::string& name)
 }
 
 GameObject::~GameObject() {
-    // Удаляем себя из списка детей родителя
-    if (m_Parent) {
-        m_Parent->RemoveChild(this);
+    // 1. Открепляемся от родителя, если он ещё существует
+    if (auto parent = m_Parent.lock()) {
+        parent->RemoveChild(this);
     }
-    // Обнуляем родителя у своих детей
+    
+    // 2. Удаляем физическое тело, если оно есть
+    if (m_rigidBody) {
+        PhysicsWorld::GetInstance().RemoveRigidBody(m_rigidBody);
+        delete m_rigidBody->getMotionState();
+        delete m_rigidBody;
+        m_rigidBody = nullptr;
+    }
+    
+    // 3. Удаляем коллизионную форму
+    if (m_collisionShape) {
+        delete m_collisionShape;
+        m_collisionShape = nullptr;
+    }
+    
+    // 4. Обнуляем родителя у детей (они всё равно будут удалены через shared_ptr, но для безопасности)
     for (auto& child : m_Children) {
-        child->m_Parent = nullptr;
+        child->m_Parent.reset();
     }
 }
 
 void GameObject::AddChild(std::shared_ptr<GameObject> child) {
     if (!child) return;
-    if (child.get() == this) return;          // нельзя добавить самого себя
-    if (child->m_Parent == this) return;      // уже является прямым ребёнком
+    if (child.get() == this) return;
+    if (child->m_Parent.lock().get() == this) return;
 
-    // Если у child уже есть родитель, открепляем его от старого родителя
-    if (child->m_Parent) {
-        child->m_Parent->RemoveChild(child.get());
+    // Если у child уже есть родитель, открепляем его
+    if (auto oldParent = child->m_Parent.lock()) {
+        oldParent->RemoveChild(child.get());
     }
 
-    child->m_Parent = this;
+    child->m_Parent = shared_from_this();
     m_Children.push_back(child);
-    std::cout << "AddChild SUCCESS: " << child->GetName() << " added to " << m_Name 
-              << ", children count = " << m_Children.size() << std::endl;
-    std::cout << "DEBUG: AddChild выполнен, теперь у " << m_Name 
-    << " детей = " << m_Children.size() << std::endl;
 }
 
 void GameObject::RemoveChild(GameObject* child) {
     auto it = std::find_if(m_Children.begin(), m_Children.end(),
         [child](const std::shared_ptr<GameObject>& ptr) { return ptr.get() == child; });
     if (it != m_Children.end()) {
-        (*it)->m_Parent = nullptr;
+        (*it)->m_Parent.reset();
         m_Children.erase(it);
-        std::cout << "Removed child: " << child->GetName() << " from " << m_Name << std::endl;
     }
 }
 
 glm::vec3 GameObject::GetWorldPosition() const {
-    if (m_Parent) {
-        return m_Parent->GetWorldPosition() + m_Position;
+    if (auto parent = m_Parent.lock()) {
+        return parent->GetWorldPosition() + m_Position;
     }
     return m_Position;
 }
@@ -67,8 +77,8 @@ glm::mat4 GameObject::GetTransformMatrix() const {
     );
     transform = transform * rotation;
     transform = glm::scale(transform, m_Scale);
-    if (m_Parent) {
-        transform = m_Parent->GetTransformMatrix() * transform;
+    if (auto parent = m_Parent.lock()) {
+        transform = parent->GetTransformMatrix() * transform;
     }
     return transform;
 }
@@ -117,6 +127,7 @@ void GameObject::Draw(Shader& shader) const {
     }
 
     if (mat) {
+        shader.SetBool("enableReflections", mat->enableReflections);
         shader.SetBool("hasDiffuseTexture", mat->HasDiffuse());
         shader.SetBool("hasNormalMap", mat->HasNormal());
         shader.SetFloat("metallic", mat->metallic);
@@ -137,6 +148,7 @@ void GameObject::Draw(Shader& shader) const {
         shader.SetInt("metallicTexture", 4);
         shader.SetInt("aoTexture", 5);
     } else {
+        shader.SetBool("enableReflections", false);
         shader.SetBool("hasDiffuseTexture", false);
         shader.SetBool("hasNormalMap", false);
         shader.SetVec3("emissionColor", 0.0f, 0.0f, 0.0f);
@@ -319,33 +331,31 @@ void GameObject::UpdatePhysicsBody() {
     m_rigidBody->setFriction(m_friction);
     m_rigidBody->setRestitution(m_restitution);
     m_rigidBody->setRollingFriction(m_rollingFriction);
-    m_rigidBody->setDamping(m_linearDamping, m_angularDamping);          
+    m_rigidBody->setDamping(m_linearDamping, m_angularDamping);     
+    SyncPhysicsToTransform();     
 }
 
 void GameObject::SetParent(std::shared_ptr<GameObject> newParent, bool keepWorldPosition) {
     if (newParent.get() == this) return;
-    if (newParent && newParent.get() == m_Parent) return;
+    if (newParent && newParent->m_Parent.lock().get() == this) return;
 
     glm::mat4 worldMat = GetTransformMatrix();
 
     // Открепляемся от старого родителя
-    if (m_Parent) {
-        m_Parent->RemoveChild(this);
-        m_Parent = nullptr;
+    if (auto oldParent = m_Parent.lock()) {
+        oldParent->RemoveChild(this);
+        m_Parent.reset();
     }
 
     // Прикрепляемся к новому
     if (newParent) {
-        m_Parent = newParent.get();
-        // Прямое добавление в вектор (обход AddChild)
+        m_Parent = newParent;
         newParent->m_Children.push_back(shared_from_this());
-        std::cout << "DIRECT ADD: parent " << newParent->GetName() 
-                  << " now has " << newParent->m_Children.size() << " children" << std::endl;
     }
 
     // Если нужно сохранить мировую позицию, пересчитываем локальную
-    if (keepWorldPosition && m_Parent) {
-        glm::mat4 parentInv = glm::inverse(m_Parent->GetTransformMatrix());
+    if (keepWorldPosition && newParent) {
+        glm::mat4 parentInv = glm::inverse(newParent->GetTransformMatrix());
         glm::mat4 localMat = parentInv * worldMat;
         glm::vec3 scale, pos, skew;
         glm::quat rot;
@@ -355,12 +365,10 @@ void GameObject::SetParent(std::shared_ptr<GameObject> newParent, bool keepWorld
         SetRotation(glm::degrees(glm::eulerAngles(rot)));
         SetScale(scale);
     }
-
-   std::cout << "SetParent: " << GetName() << " parent is " << (m_Parent ? m_Parent->GetName() : "null") << std::endl;
 }
 
 bool GameObject::CanHavePhysics() const {
-    return m_Parent == nullptr && m_Children.empty();
+    return m_Parent.lock() == nullptr && m_Children.empty();
 }
 
 void GameObject::CalculateAABB(glm::vec3& outMin, glm::vec3& outMax) const {
@@ -407,7 +415,7 @@ void GameObject::CalculateAABB(glm::vec3& outMin, glm::vec3& outMax) const {
 }
 
 void GameObject::Unparent() {
-    if (!m_Parent) return;
+    if (!m_Parent.lock()) return;
 
     // Сохраняем мировую позицию
     glm::mat4 worldMat = GetTransformMatrix();
@@ -417,15 +425,17 @@ void GameObject::Unparent() {
     glm::decompose(worldMat, scale, rot, pos, skew, persp);
 
     // Открепляемся
-    m_Parent->RemoveChild(this);
-    m_Parent = nullptr;
+    if (auto parent = m_Parent.lock()) {
+        parent->RemoveChild(this);
+    }
+    m_Parent.reset();
 
     // Устанавливаем абсолютную трансформацию
     SetPosition(pos);
     SetRotation(glm::degrees(glm::eulerAngles(rot)));
     SetScale(scale);
 
-    // Если была физика – удаляем (на всякий случай)
+    // Если была физика – удаляем
     if (!CanHavePhysics() && m_rigidBody) {
         RemoveRigidBody();
     }
