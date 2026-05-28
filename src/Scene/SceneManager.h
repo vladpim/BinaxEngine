@@ -73,6 +73,9 @@ public:
     void RenderWithCulling(Shader& shader, const Frustum& frustum);
     void RenderInstanced(Shader& shader, const Frustum* frustum = nullptr);
     void RenderLightShafts(const glm::mat4& view, const glm::mat4& projection);
+    void RenderFrustumGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection, 
+                         const GameObject* activeCamera) const;
+    void RenderLightGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection) const;
     
 
 private:
