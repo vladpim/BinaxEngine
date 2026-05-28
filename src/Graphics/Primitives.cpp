@@ -526,3 +526,41 @@ std::shared_ptr<Mesh> Primitives::CreateSkyboxSphere(int segments) {
     mesh->SetName("SkyboxSphere");
     return mesh;
 }
+
+std::shared_ptr<Mesh> Primitives::CreateGridLines(int size, float step) {
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+    int half = size / 2;
+    
+    // Генерируем линии вдоль оси X (Z = const)
+    for (float z = -half; z <= half + 0.1f; z += step) {
+        Vertex v1, v2;
+        v1.Position[0] = -half; v1.Position[1] = 0; v1.Position[2] = z;
+        v2.Position[0] =  half; v2.Position[1] = 0; v2.Position[2] = z;
+        // Нормали и текстурные координаты не важны, заполним нулями
+        for (int i = 0; i < 3; i++) { v1.Normal[i] = v2.Normal[i] = 0; v1.Tangent[i] = v2.Tangent[i] = 0; }
+        v1.TexCoords[0] = v1.TexCoords[1] = v2.TexCoords[0] = v2.TexCoords[1] = 0;
+        vertices.push_back(v1);
+        vertices.push_back(v2);
+    }
+    // Линии вдоль оси Z (X = const)
+    for (float x = -half; x <= half + 0.1f; x += step) {
+        Vertex v1, v2;
+        v1.Position[0] = x; v1.Position[1] = 0; v1.Position[2] = -half;
+        v2.Position[0] = x; v2.Position[1] = 0; v2.Position[2] =  half;
+        for (int i = 0; i < 3; i++) { v1.Normal[i] = v2.Normal[i] = 0; v1.Tangent[i] = v2.Tangent[i] = 0; }
+        v1.TexCoords[0] = v1.TexCoords[1] = v2.TexCoords[0] = v2.TexCoords[1] = 0;
+        vertices.push_back(v1);
+        vertices.push_back(v2);
+    }
+    
+    // Индексы: просто 0,1,2,3,... (каждая линия – два вертекса)
+    for (unsigned int i = 0; i < vertices.size(); i++) {
+        indices.push_back(i);
+    }
+    
+    auto mesh = std::make_shared<Mesh>(vertices, indices);
+    mesh->SetName("GridLines");
+    mesh->SetDrawMode(GL_LINES);   // нужна доработка Mesh (см. ниже)
+    return mesh;
+}
