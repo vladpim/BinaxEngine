@@ -370,6 +370,19 @@ else
 
     g_SceneManager.RenderLightShafts(view, projection);
 
+    gizmoShader.Use();
+gizmoShader.SetMat4("view", glm::value_ptr(view));
+gizmoShader.SetMat4("projection", glm::value_ptr(projection));
+gizmoShader.SetVec3("color", 1.0f, 1.0f, 1.0f);
+g_SceneManager.RenderFrustumGizmos(gizmoShader, view, projection, activeCamera.get());
+
+// Рендер гизмо для Spot Light (белый конус)
+gizmoShader.Use();
+gizmoShader.SetMat4("view", glm::value_ptr(view));
+gizmoShader.SetMat4("projection", glm::value_ptr(projection));
+gizmoShader.SetVec3("color", 1.0f, 1.0f, 1.0f);
+g_SceneManager.RenderLightGizmos(gizmoShader, view, projection);
+
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         // --- Пост-эффект тумана ---
