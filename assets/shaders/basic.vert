@@ -1,8 +1,8 @@
 #version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aNormal;
-layout (location = 2) in vec2 aTexCoords;
-layout (location = 3) in vec3 aTangent;
+layout(location = 0) in vec3 aPos;
+layout(location = 1) in vec3 aNormal;
+layout(location = 2) in vec2 aTexCoords;
+layout(location = 3) in vec3 aTangent;
 
 out vec3 FragPos;
 out vec2 TexCoords;
@@ -14,18 +14,15 @@ uniform mat4 view;
 uniform mat4 projection;
 uniform mat4 lightSpaceMatrix;
 
-void main()
-{
+void main() {
     vec4 worldPos = model * vec4(aPos, 1.0);
     FragPos = worldPos.xyz;
     TexCoords = aTexCoords;
     FragPosLightSpace = lightSpaceMatrix * worldPos;
 
-    // Матрица для преобразования нормалей и касательных в мировое пространство
     mat3 normalMatrix = transpose(inverse(mat3(model)));
     vec3 T = normalize(normalMatrix * aTangent);
     vec3 N = normalize(normalMatrix * aNormal);
-    // Пересчёт бинормали для ортогональности (исправление при искажённых UV)
     vec3 B = cross(N, T);
     TBN = mat3(T, B, N);
 
