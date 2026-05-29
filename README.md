@@ -1,4 +1,4 @@
-# 🎮 BinaxEngineTestVersion - Game Engine (v0.6.2 Beta)
+# 🎮 BinaxEngineTestVersion - Game Engine (v0.6.3)
 
 [![CMake](https://img.shields.io/badge/CMake-3.15+-blue?style=flat-square&logo=cmake)](https://cmake.org/)
 [![C++](https://img.shields.io/badge/C++-17-orange?style=flat-square&logo=cplusplus)](https://isocpp.org/)
