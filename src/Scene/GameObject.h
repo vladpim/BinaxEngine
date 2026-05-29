@@ -136,7 +136,32 @@ public:
     bool GetShowFrustumGizmo() const { return m_ShowFrustumGizmo; }
     void SetShowLightGizmo(bool show) { m_ShowLightGizmo = show; }
     bool GetShowLightGizmo() const { return m_ShowLightGizmo; }
-
+    // Audio
+    void SetAudioClip(const std::string& path);
+    std::string GetAudioClipPath() const { return m_AudioClipPath; }
+    void PlayAudio(bool loop = false, float volume = 1.0f);
+    void StopAudio();
+    bool IsAudioPlaying() const;
+    void SetAudioVolume(float vol) { m_AudioVolume = vol; }
+    float GetAudioVolume() const { return m_AudioVolume; }
+    void SetAudioLoop(bool loop) { m_AudioLoop = loop; }
+    bool GetAudioLoop() const { return m_AudioLoop; }
+    void SetAudioSpatial(bool spatial) { m_AudioSpatial = spatial; }
+    bool GetAudioSpatial() const { return m_AudioSpatial; }
+    void SetAudioMinDistance(float d) { m_AudioMinDistance = d; }
+    float GetAudioMinDistance() const { return m_AudioMinDistance; }
+    void SetAudioMaxDistance(float d) { m_AudioMaxDistance = d; }
+    float GetAudioMaxDistance() const { return m_AudioMaxDistance; }
+    void SetShowAudioGizmo(bool show) { m_ShowAudioGizmo = show; }
+    bool GetShowAudioGizmo() const { return m_ShowAudioGizmo; }
+    void UpdateAudioPosition(const glm::vec3& pos);   // вызывать при перемещении
+    void UpdateAudioVolume(float vol);
+    void UpdateAudioMinDistance(float dist);
+    void UpdateAudioMaxDistance(float dist);
+    void UpdateAudioSpatial(bool spatial);
+    bool IsAudioSourceEnabled() const { return m_AudioSourceEnabled; }
+    void EnableAudioSource();
+    void DisableAudioSource();  // удаляет компонент, выгружает звук
 
 private:
     std::string m_Name;
@@ -152,6 +177,7 @@ private:
     bool m_ReceiveShadows = true;
     bool m_ShowFrustumGizmo = true;
     bool m_ShowLightGizmo = true;
+    bool m_AudioSourceEnabled = false;
     std::shared_ptr<Material> m_Material;
     glm::vec3 m_PreviousRotation = glm::vec3(0.0f);
     int m_LightType = LT_NONE;
@@ -190,4 +216,13 @@ private:
     glm::vec3 m_initialPosition;
     glm::vec3 m_initialRotation;
     glm::vec3 m_initialScale;
+    // ========== AUDIO ==========
+    uint64_t m_AudioID = 0;
+    std::string m_AudioClipPath;
+    float m_AudioVolume = 1.0f;
+    bool m_AudioLoop = false;
+    bool m_AudioSpatial = true;        // true = 3D, false = 2D
+    float m_AudioMinDistance = 1.0f;
+    float m_AudioMaxDistance = 20.0f;
+    bool m_ShowAudioGizmo = true;
 };
