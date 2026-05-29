@@ -234,9 +234,13 @@ void SceneManager::UpdatePhysics(float deltaTime) {
             obj->SyncTransformToPhysics();
             // отладочный вывод
             std::cout << "Syncing " << obj->GetName() << std::endl;
-        }
+            // Добавь обновление аудиопозиции после синхронизации трансформации
+    if (!obj->GetAudioClipPath().empty() && obj->GetAudioSpatial()) {
+        obj->UpdateAudioPosition(obj->GetWorldPosition());
     }
 }
+        }
+    }
 
 void SceneManager::SetPhysicsActive(bool active) {
     std::cout << "SceneManager::SetPhysicsActive(" << active << ")" << std::endl;
@@ -531,6 +535,89 @@ void SceneManager::RenderLightGizmos(Shader& shader, const glm::mat4& view, cons
 
     glLineWidth(1.5f);
     glBindVertexArray(lineVAO);
+    glDrawArrays(GL_LINES, 0, (GLsizei)vertexCount);
+    glBindVertexArray(0);
+    glLineWidth(1.0f);
+}
+
+void SceneManager::RenderAudioGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection) const {
+    if (!m_Initialized) return;
+    
+    // Статические предрасчитанные окружности (один раз)
+    static std::vector<glm::vec3> circleXY, circleXZ, circleYZ;
+    static bool initGeometry = false;
+    if (!initGeometry) {
+        const int segments = 32;
+        for (int i = 0; i <= segments; ++i) {
+            float angle = 2.0f * 3.14159265359f * i / segments;
+            float x = cosf(angle), y = sinf(angle);
+            circleXY.emplace_back(x, y, 0.0f);
+            circleXZ.emplace_back(x, 0.0f, y);
+            circleYZ.emplace_back(0.0f, x, y);
+        }
+        initGeometry = true;
+    }
+    
+    // Статический VAO / VBO (один на все вызовы)
+    static GLuint audioVAO = 0, audioVBO = 0;
+    static size_t vboCapacity = 0;
+    if (audioVAO == 0) {
+        glGenVertexArrays(1, &audioVAO);
+        glGenBuffers(1, &audioVBO);
+        glBindVertexArray(audioVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, audioVBO);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+    
+    // Собираем линии для всех объектов с Audio
+    std::vector<glm::vec3> allLines;
+    allLines.reserve(5000);
+    
+    for (const auto& obj : m_Objects) {
+        if (!obj->GetShowAudioGizmo()) continue;
+        if (obj->GetAudioClipPath().empty()) continue;
+        float radius = obj->GetAudioMaxDistance();
+        if (radius <= 0.0f) continue;
+        glm::vec3 center = obj->GetWorldPosition();
+        
+        // Лямбда для добавления окружности
+        auto addCircle = [&](const std::vector<glm::vec3>& unitCircle) {
+            for (size_t i = 0; i < unitCircle.size() - 1; ++i) {
+                glm::vec3 p1 = center + unitCircle[i] * radius;
+                glm::vec3 p2 = center + unitCircle[i+1] * radius;
+                allLines.push_back(p1);
+                allLines.push_back(p2);
+            }
+        };
+        addCircle(circleXY);
+        addCircle(circleXZ);
+        addCircle(circleYZ);
+    }
+    
+    if (allLines.empty()) return;
+    
+    size_t vertexCount = allLines.size();
+    size_t bufferSize = vertexCount * sizeof(glm::vec3);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, audioVBO);
+    if (bufferSize > vboCapacity) {
+        vboCapacity = bufferSize + 10000 * sizeof(glm::vec3); // запас
+        glBufferData(GL_ARRAY_BUFFER, vboCapacity, nullptr, GL_DYNAMIC_DRAW);
+    }
+    glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, allLines.data());
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    
+    shader.Use();
+    shader.SetMat4("model", glm::value_ptr(glm::mat4(1.0f)));
+    shader.SetMat4("view", glm::value_ptr(view));
+    shader.SetMat4("projection", glm::value_ptr(projection));
+    shader.SetVec3("color", 1.0f, 1.0f, 1.0f); // белый
+    
+    glLineWidth(1.5f);
+    glBindVertexArray(audioVAO);
     glDrawArrays(GL_LINES, 0, (GLsizei)vertexCount);
     glBindVertexArray(0);
     glLineWidth(1.0f);
