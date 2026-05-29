@@ -119,8 +119,8 @@ This release introduces full audio system, real‑time 3D sound, editor componen
 - CMake 3.15+
 - Git
 
-Build Steps
-```bash
+### Build Steps
+
 git clone https://github.com/VladislavPim/BinaxEngine.git
 cd BinaxEngine
 mkdir build
