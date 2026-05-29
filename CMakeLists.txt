@@ -112,6 +112,7 @@ set(SOURCES
     src/Scene/Frustum.cpp
     src/Editor/EditorUI.cpp
     src/Physics/PhysicsWorld.cpp
+    src/Audio/AudioEngine.cpp          # <--- ДОБАВЛЕНО
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
@@ -143,6 +144,7 @@ target_include_directories(BinaxEngine PRIVATE
     ${ASSETS_DIR}
     ${BULLET_INCLUDE}
     ${JSON_INCLUDE}
+    ${LIBS_DIR}        # <--- ДОБАВЛЕНО (для miniaudio.h)
 )
 
 if(EXISTS "${ASSIMP_INCLUDE}")
@@ -168,6 +170,8 @@ target_link_libraries(BinaxEngine PRIVATE
     opengl32.lib
     comdlg32.lib
     ${BULLET_LIBS}
+    winmm.lib          # <--- ДОБАВЛЕНО (микрофон/аудио для miniaudio)
+    ole32.lib          # <--- ДОБАВЛЕНО (COM для miniaudio)
 )
 
 if(ASSIMP_LIBRARY)
