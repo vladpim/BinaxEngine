@@ -13,6 +13,23 @@
 #include "Editor/EditorUI.h"
 #include "Scene/Frustum.h"
 #include "Physics/PhysicsWorld.h"
+#include "Audio/AudioEngine.h"
+#include <windows.h>
+#include <shellapi.h>
+
+#pragma comment(linker, "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
+
+bool IsRunningAsAdmin() {
+    BOOL isAdmin = FALSE;
+    PSID adminGroup = NULL;
+    SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
+    if (AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID,
+                                 DOMAIN_ALIAS_RID_ADMINS, 0,0,0,0,0,0, &adminGroup)) {
+        CheckTokenMembership(NULL, adminGroup, &isAdmin);
+        FreeSid(adminGroup);
+    }
+    return isAdmin == TRUE;
+}
 
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
@@ -31,7 +48,6 @@ Shader gizmoShader;
 Shader skyboxShader;
 Shader depthShader;
 Shader screenFogShader;
-
 Skybox skybox;
 
 // Карта теней
@@ -135,6 +151,16 @@ unsigned int LoadCubemap(const std::vector<std::string>& faces) {
 }
 
 int main() {
+
+    if (!IsRunningAsAdmin()) {
+    MessageBoxA(NULL,
+        "It is recommended to run the editor with administrator rights.\n"
+        "This will reduce the load on the central processor.\n"
+        "Click OK to continue without admin rights, or restart as administrator.",
+        "Binax Engine",
+        MB_ICONINFORMATION | MB_OK);
+}
+
     std::cout << "=== Binax Engine Editor ===" << std::endl;
 
     glfwInit();
@@ -155,6 +181,13 @@ int main() {
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, key_callback);
+
+    // Инициализация аудиодвижка
+if (!AudioEngine::Get().Initialize()) {
+    std::cerr << "Warning: AudioEngine failed to initialize" << std::endl;
+} else {
+    std::cout << "AudioEngine ready" << std::endl;
+}
 
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
@@ -239,6 +272,12 @@ bool useCulling = activeCamera->GetFrustumCulling();
 if (useCulling) {
     glm::mat4 viewProj = projection * view;
     frustum.Update(viewProj);
+    // ========== АУДИО: обновляем слушателя ==========
+    glm::vec3 camPos = activeCamera->GetWorldPosition();
+    // Вектор forward – третья колонка матрицы трансформации (ось Z)
+    glm::vec3 camForward = glm::normalize(glm::vec3(activeCamera->GetTransformMatrix()[2]));
+    glm::vec3 camUp = glm::normalize(glm::vec3(activeCamera->GetTransformMatrix()[1]));
+    AudioEngine::Get().Update(camPos, camForward, camUp);
 }
 
         // --- Находим направленный свет для карты теней ---
@@ -382,6 +421,9 @@ gizmoShader.SetMat4("view", glm::value_ptr(view));
 gizmoShader.SetMat4("projection", glm::value_ptr(projection));
 gizmoShader.SetVec3("color", 1.0f, 1.0f, 1.0f);
 g_SceneManager.RenderLightGizmos(gizmoShader, view, projection);
+// Аудио гизмо (дальность звука)
+gizmoShader.Use();
+g_SceneManager.RenderAudioGizmos(gizmoShader, view, projection);
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -428,6 +470,7 @@ if (fogObj && fogObj->GetFogEnabled()) {
     }
 
     g_EditorUI.Shutdown();
+    AudioEngine::Get().Shutdown();
     PhysicsWorld::GetInstance().Shutdown();
     glfwDestroyWindow(window);
     glfwTerminate();
