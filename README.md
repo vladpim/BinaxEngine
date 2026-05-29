@@ -119,17 +119,20 @@ This release introduces full audio system, real‑time 3D sound, editor componen
 - CMake 3.15+
 - Git
 
-### Build Steps
-
-git clone https://github.com/VladislavPim/BinaxEngine.git
+## Build Steps
+```bash
+git clone https://github.com/VladPim/BinaxEngine.git
 cd BinaxEngine
 mkdir build
 cd build
 cmake .. -A x64
 cmake --build . --config Release
-Run
-After build, execute BinaxEngine.exe from build/Release/. First launch will request administrator rights – recommended for best performance.
+```
 
+### Run
+After build, execute `BinaxEngine.exe` from `build/Release/`.
+
+---
 🕹️ Editor Controls
 Action	Keys
 Move camera	WASD + Space/Shift
