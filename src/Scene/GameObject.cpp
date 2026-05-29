@@ -6,6 +6,7 @@
 #include <iostream>
 #include "Physics/PhysicsWorld.h"
 #include <btBulletDynamicsCommon.h>
+#include "Audio/AudioEngine.h"
 
 GameObject::GameObject(const std::string& name)
     : m_Name(name) {
@@ -385,17 +386,27 @@ void GameObject::CalculateAABB(glm::vec3& outMin, glm::vec3& outMax) const {
         outMax = glm::vec3(-FLT_MAX);
         for (int i = 0; i < 8; ++i) {
             glm::vec3 world = glm::vec3(m * glm::vec4(corners[i], 1.0f));
-            outMin = glm::min(outMin, world);
-            outMax = glm::max(outMax, world);
+            // Ручное сравнение вместо glm::min / glm::max
+            if (world.x < outMin.x) outMin.x = world.x;
+            if (world.y < outMin.y) outMin.y = world.y;
+            if (world.z < outMin.z) outMin.z = world.z;
+            if (world.x > outMax.x) outMax.x = world.x;
+            if (world.y > outMax.y) outMax.y = world.y;
+            if (world.z > outMax.z) outMax.z = world.z;
         }
         return;
     }
-    // Вычисляем AABB по вершинам меша (лучше закэшировать локальный AABB в Mesh)
+    // Вычисляем AABB по вершинам меша
     const auto& vertices = m_Mesh->GetVertices();
     glm::vec3 localMin( FLT_MAX), localMax(-FLT_MAX);
     for (const auto& v : vertices) {
-        localMin = glm::min(localMin, glm::vec3(v.Position[0], v.Position[1], v.Position[2]));
-        localMax = glm::max(localMax, glm::vec3(v.Position[0], v.Position[1], v.Position[2]));
+        glm::vec3 pos(v.Position[0], v.Position[1], v.Position[2]);
+        if (pos.x < localMin.x) localMin.x = pos.x;
+        if (pos.y < localMin.y) localMin.y = pos.y;
+        if (pos.z < localMin.z) localMin.z = pos.z;
+        if (pos.x > localMax.x) localMax.x = pos.x;
+        if (pos.y > localMax.y) localMax.y = pos.y;
+        if (pos.z > localMax.z) localMax.z = pos.z;
     }
     glm::mat4 m = GetTransformMatrix();
     outMin = glm::vec3( FLT_MAX);
@@ -409,8 +420,12 @@ void GameObject::CalculateAABB(glm::vec3& outMin, glm::vec3& outMax) const {
     };
     for (int i = 0; i < 8; ++i) {
         glm::vec3 world = glm::vec3(m * glm::vec4(corners[i], 1.0f));
-        outMin = glm::min(outMin, world);
-        outMax = glm::max(outMax, world);
+        if (world.x < outMin.x) outMin.x = world.x;
+        if (world.y < outMin.y) outMin.y = world.y;
+        if (world.z < outMin.z) outMin.z = world.z;
+        if (world.x > outMax.x) outMax.x = world.x;
+        if (world.y > outMax.y) outMax.y = world.y;
+        if (world.z > outMax.z) outMax.z = world.z;
     }
 }
 
@@ -457,9 +472,6 @@ void GameObject::ResetToInitialTransform() {
         m_rigidBody->setAngularVelocity(btVector3(0,0,0));
     }
 }
-
-
-// В самый конец файла:
 
 void GameObject::SetShaftEnabled(bool enabled) {
     if (m_ShaftEnabled == enabled) return;
@@ -520,7 +532,6 @@ void GameObject::UpdateShaftMesh() {
         vertices.push_back(v);
     }
     
-    // Индексы для боковых граней (треугольники: вершина – две соседние точки основания)
     for (int i = 0; i < segments; ++i) {
         indices.push_back(0);
         indices.push_back(i + 1);
@@ -544,3 +555,95 @@ void GameObject::SetShaftDensity(float density) {
     m_ShaftDensity = glm::clamp(density, 0.0f, 1.0f);
 }
 float GameObject::GetShaftDensity() const { return m_ShaftDensity; }
+
+void GameObject::SetAudioClip(const std::string& path) {
+    if (m_AudioID != 0) {
+        AudioEngine::Get().UnloadSound(m_AudioID);
+        m_AudioID = 0;
+    }
+    m_AudioClipPath = path;
+    if (!path.empty()) {
+        m_AudioID = AudioEngine::Get().LoadSound(path);
+        if (m_AudioID == 0)
+            std::cerr << "[GameObject] Failed to load audio: " << path << std::endl;
+    }
+}
+
+void GameObject::PlayAudio(bool loop, float volume) {
+    if (m_AudioID == 0 || m_AudioClipPath.empty()) return;
+    // Останавливаем предыдущий звук, если он играет
+    if (IsAudioPlaying()) StopAudio();
+    if (m_AudioSpatial) {
+        glm::vec3 pos = GetWorldPosition();
+        AudioEngine::Get().Play3D(m_AudioID, pos, volume, loop, m_AudioMinDistance, m_AudioMaxDistance);
+    } else {
+        AudioEngine::Get().Play2D(m_AudioID, volume, loop);
+    }
+}
+
+void GameObject::StopAudio() {
+    if (m_AudioID) AudioEngine::Get().Stop(m_AudioID);
+}
+
+bool GameObject::IsAudioPlaying() const {
+    return m_AudioID ? AudioEngine::Get().IsPlaying(m_AudioID) : false;
+}
+
+void GameObject::UpdateAudioPosition(const glm::vec3& pos) {
+    if (m_AudioSpatial && m_AudioID && IsAudioPlaying()) {
+        AudioEngine::Get().UpdateSoundPosition(m_AudioID, pos);
+    }
+}
+
+void GameObject::UpdateAudioVolume(float vol) {
+    m_AudioVolume = vol;
+    if (m_AudioID && IsAudioPlaying()) {
+        AudioEngine::Get().UpdateVolume(m_AudioID, vol);
+    }
+}
+
+void GameObject::UpdateAudioMinDistance(float dist) {
+    m_AudioMinDistance = dist;
+    if (m_AudioID && IsAudioPlaying() && m_AudioSpatial) {
+        AudioEngine::Get().UpdateMinDistance(m_AudioID, dist);
+    }
+}
+
+void GameObject::UpdateAudioMaxDistance(float dist) {
+    m_AudioMaxDistance = dist;
+    if (m_AudioID && IsAudioPlaying() && m_AudioSpatial) {
+        AudioEngine::Get().UpdateMaxDistance(m_AudioID, dist);
+    }
+}
+
+void GameObject::UpdateAudioSpatial(bool spatial) {
+    if (m_AudioSpatial == spatial) return;
+    bool wasPlaying = IsAudioPlaying();
+    if (wasPlaying) StopAudio();
+    m_AudioSpatial = spatial;
+    if (wasPlaying) {
+        PlayAudio(m_AudioLoop, m_AudioVolume);
+    }
+}
+
+void GameObject::EnableAudioSource() {
+    if (m_AudioSourceEnabled) return;
+    m_AudioSourceEnabled = true;
+    // Можно создать пустую заглушку, но пока ничего не загружаем
+}
+
+void GameObject::DisableAudioSource() {
+    if (!m_AudioSourceEnabled) return;
+    if (m_AudioID != 0) {
+        StopAudio();
+        AudioEngine::Get().UnloadSound(m_AudioID);
+        m_AudioID = 0;
+    }
+    m_AudioClipPath.clear();
+    m_AudioVolume = 1.0f;
+    m_AudioLoop = false;
+    m_AudioSpatial = true;
+    m_AudioMinDistance = 1.0f;
+    m_AudioMaxDistance = 20.0f;
+    m_AudioSourceEnabled = false;
+}
