@@ -456,6 +456,12 @@ if (ImGui::MenuItem("Spot Light")) {
     }
 }
 
+if (ImGui::MenuItem("Audio Source")) {
+    auto audioObj = m_SceneManager->CreateGameObject("AudioSource");
+    audioObj->EnableAudioSource();   // добавляем компонент
+    // Не даём меш – чисто компонент
+}
+
 if (ImGui::MenuItem("Base Fog")) {
     auto fog = m_SceneManager->CreateGameObject("Base Fog");
     fog->SetIsFog(true);
@@ -573,6 +579,55 @@ void EditorUI::DrawObjectTreeNode(std::shared_ptr<GameObject> obj, int& id) {
     ImGui::PopID();
 }
 
+void EditorUI::DrawAudioSourceUI(std::shared_ptr<GameObject> selected) {
+    static char audioPathBuf[512] = "";
+    std::string currentPath = selected->GetAudioClipPath();
+    strcpy(audioPathBuf, currentPath.c_str());
+    if (ImGui::InputText("Audio File", audioPathBuf, sizeof(audioPathBuf))) {
+        selected->SetAudioClip(audioPathBuf);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("...")) {
+        std::string path = OpenFileDialog("*.wav;*.mp3;*.flac;*.ogg");
+        if (!path.empty()) {
+            selected->SetAudioClip(path);
+            strcpy(audioPathBuf, path.c_str());
+        }
+    }
+
+    float vol = selected->GetAudioVolume();
+    if (ImGui::SliderFloat("Volume", &vol, 0.0f, 2.0f))
+        selected->UpdateAudioVolume(vol);
+
+    bool loop = selected->GetAudioLoop();
+    if (ImGui::Checkbox("Loop", &loop))
+        selected->SetAudioLoop(loop);
+
+    bool spatial = selected->GetAudioSpatial();
+    if (ImGui::Checkbox("3D Sound", &spatial))
+        selected->UpdateAudioSpatial(spatial);
+
+    if (spatial) {
+        float minD = selected->GetAudioMinDistance();
+        if (ImGui::DragFloat("Min Distance", &minD, 0.1f, 0.1f, 100.0f))
+            selected->UpdateAudioMinDistance(minD);
+        float maxD = selected->GetAudioMaxDistance();
+        if (ImGui::DragFloat("Max Distance", &maxD, 0.5f, 1.0f, 500.0f))
+            selected->UpdateAudioMaxDistance(maxD);
+    }
+
+    if (ImGui::Button("Play")) {
+        selected->PlayAudio(selected->GetAudioLoop(), selected->GetAudioVolume());
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Stop")) {
+        selected->StopAudio();
+    }
+
+    bool showGizmo = selected->GetShowAudioGizmo();
+    if (ImGui::Checkbox("Show Gizmo (Range)", &showGizmo))
+        selected->SetShowAudioGizmo(showGizmo);
+}
 
 void EditorUI::DrawInspector() {
     if (ImGui::Begin("Inspector")) {
@@ -770,46 +825,59 @@ if (ImGui::SliderFloat("Density", &density, 0.0f, 1.0f))
                 }
 
                 if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    bool canAddComponents = !selected->IsCamera() && selected->GetLightType() == LT_NONE;
-                    if (!canAddComponents) {
-                        ImGui::TextDisabled("Components not available for lights or cameras");
+    bool canAddComponents = !selected->IsCamera() && selected->GetLightType() == LT_NONE;
+    if (!canAddComponents) {
+        ImGui::TextDisabled("Components not available for lights or cameras");
+    } else {
+        bool hasPhysics = selected->HasRigidBody() || selected->GetColliderType() != COLLIDER_NONE;
+        if (hasPhysics) {
+            DrawPhysicsComponents(selected);
+            if (ImGui::Button("Remove Physics")) {
+                selected->RemoveRigidBody();
+                selected->SetColliderType(COLLIDER_NONE);
+            }
+        } else {
+            if (ImGui::Button("Add Component")) {
+                ImGui::OpenPopup("add_component_popup");
+            }
+            if (ImGui::BeginPopup("add_component_popup")) {
+                if (ImGui::MenuItem("Physics")) {
+                    if (selected->CanHavePhysics()) {
+                        selected->SetColliderType(COLLIDER_BOX);
+                        selected->AddRigidBody(1.0f);
+                        selected->SaveInitialTransform();
+                        PhysicsWorld::GetInstance().RegisterGameObject(selected.get());
                     } else {
-                        bool hasPhysics = selected->HasRigidBody() || selected->GetColliderType() != COLLIDER_NONE;
-                        if (hasPhysics) {
-                            DrawPhysicsComponents(selected);
-                            if (ImGui::Button("Remove Physics")) {
-                                selected->RemoveRigidBody();
-                                selected->SetColliderType(COLLIDER_NONE);
-                            }
-                        } else {
-                            if (ImGui::Button("Add Component")) {
-                                ImGui::OpenPopup("add_component_popup");
-                            }
-                            if (ImGui::BeginPopup("add_component_popup")) {
-                                if (ImGui::MenuItem("Physics")) {
-                                    if (selected->CanHavePhysics()) {
-                                        selected->SetColliderType(COLLIDER_BOX);
-                                        selected->AddRigidBody(1.0f);
-                                        selected->SaveInitialTransform();
-                                        PhysicsWorld::GetInstance().RegisterGameObject(selected.get());
-                                    } else {
-                                        ImGui::OpenPopup("physics_error");
-                                    }
-                                }
-                                ImGui::EndPopup();
-                            }
-                            if (ImGui::BeginPopupModal("physics_error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-                                ImGui::Text("Cannot add physics to object with parent or children!");
-                                if (ImGui::Button("OK")) ImGui::CloseCurrentPopup();
-                                ImGui::EndPopup();
-                            }
-                        }
+                        ImGui::OpenPopup("physics_error");
                     }
                 }
-            } // конец else (не-камера)
-        } // конец if (selected)
-        ImGui::End(); // перемещено внутрь блока Begin
-    } // конец if (ImGui::Begin)
+                if (ImGui::MenuItem("Audio Source")) {
+                    selected->EnableAudioSource();
+                }
+                ImGui::EndPopup();
+            }
+            if (ImGui::BeginPopupModal("physics_error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::Text("Cannot add physics to object with parent or children!");
+                if (ImGui::Button("OK")) ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
+            }
+        } // конец if (hasPhysics) else
+
+        // Отображение компонента Audio Source, если он включён
+        if (selected->IsAudioSourceEnabled()) {
+            if (ImGui::CollapsingHeader("Audio Source", ImGuiTreeNodeFlags_DefaultOpen)) {
+                DrawAudioSourceUI(selected);
+                if (ImGui::Button("Remove Component")) {
+                    selected->DisableAudioSource();
+                }
+            }
+        }
+    } 
+}               
+}
+}
+ }
+        ImGui::End();
 }
 
 void EditorUI::DrawMaterialControls(std::shared_ptr<GameObject> obj) {
