@@ -172,7 +172,7 @@ Press Play – move the camera closer/farther to hear the attenuation.
 Enable Show Gizmo (Range) to visualise the max distance sphere.
 
 📂 Project Structure
-text
+```
 BinaxEngine/
 ├── assets/                 # shaders, textures, models
 ├── libs/                   # third‑party libraries (GLFW, GLEW, Bullet, Assimp, ImGui, GLM, STB, miniaudio)
@@ -186,6 +186,9 @@ BinaxEngine/
 │   └── main.cpp            # entry point
 ├── CMakeLists.txt
 └── README.md
+```
+---
+
 🔮 Planned for Future Releases
 Particle system
 
