@@ -16,7 +16,7 @@ struct EditorSettings {
     bool wireframe_mode = false;
     bool grid_enabled = true;
     bool snap_to_grid = false;
-    bool skyboxSeamless = true;   // убирать стыки
+    bool skyboxSeamless = true;
     float grid_size = 1.0f;
     float bg_color[3] = {0.1f, 0.1f, 0.1f};
     float shininess = 32.0f;
@@ -27,14 +27,11 @@ struct EditorSettings {
     glm::vec3 light_color = glm::vec3(1.0f, 1.0f, 1.0f);
     bool shadows_enabled = true;
     float shadow_bias = 0.005f;
-
     bool useSnap = false;
     float snapTranslation = 0.1f;
     float snapRotation = 5.0f;
     float snapScale = 0.1f;
-
-    bool vsync = true;  // по умолчанию включено
-
+    bool vsync = true;
     int shadowMapSize = 2048;
     float shadowSoftness = 2.0f;
     int shadowSamples = 4;
@@ -68,6 +65,7 @@ public:
     void SetSkybox(Skybox* skybox) { m_Skybox = skybox; }
     bool IsGizmoActive() const { return m_GizmoActive; }
     std::string SaveFileDialog(const char* filter, const char* defaultExt = "binaxmat");
+    void DrawAudioSourceUI(std::shared_ptr<GameObject> selected);
     
 
 private:
