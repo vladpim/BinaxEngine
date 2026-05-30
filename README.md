@@ -202,8 +202,3 @@ Animation (skeletal)
 More audio features (attenuation curves, Doppler effect)
 
 ---
-
-📝 License
-This project is licensed under the MIT License – see the LICENSE file for details.
-
----
