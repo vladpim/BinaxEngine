@@ -1,12 +1,4 @@
-# 🎮 BinaxEngine - Game Engine (v0.8.0)
-
-[![CMake](https://img.shields.io/badge/CMake-blue?style=flat-square&logo=cmake)](https://cmake.org/)
-[![C++](https://img.shields.io/badge/C++-17-orange?style=flat-square&logo=cplusplus)](https://isocpp.org/)
-[![OpenGL](https://img.shields.io/badge/OpenGL-red?style=flat-square&logo=opengl)](https://www.opengl.org/)
-[![Bullet Physics](https://img.shields.io/badge/Bullet-brightgreen?style=flat-square)](https://pybullet.org/)
-[![Assimp](https://img.shields.io/badge/Assimp-blue?style=flat-square)](https://assimp.org/)
-[![Windows](https://img.shields.io/badge/Platform-Windows-blue?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
-[![Status](https://img.shields.io/badge/status-beta-yellow?style=flat-square)]()
+# BinaxEngine - Game Engine (v0.8.0)
 
 ---
 
