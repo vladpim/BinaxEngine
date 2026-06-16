@@ -29,6 +29,9 @@ public:
     std::string GetName() const { return m_Name; }
     const std::vector<Vertex>& GetVertices() const { return m_Vertices; }
     void SetDrawMode(GLenum mode) { m_DrawMode = mode; }
+    void SetWorldTransform(const glm::mat4& transform) { m_WorldTransform = transform; }
+    glm::mat4 GetWorldTransform() const { return m_WorldTransform; }
+    glm::mat4 m_WorldTransform = glm::mat4(1.0f);
 
 private:
     GLuint VAO = 0, VBO = 0, EBO = 0;
