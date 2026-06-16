@@ -5,6 +5,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <glm/glm.hpp>
 #include "Mesh.h"
 #include "Material.h"
 
@@ -18,7 +19,7 @@ public:
 
 private:
     void loadModel(const std::string& path);
-    void processNode(aiNode* node, const aiScene* scene);
+    void processNode(aiNode* node, const aiScene* scene, const glm::mat4& parentTransform);
     std::shared_ptr<Mesh> processMesh(aiMesh* mesh, const aiScene* scene);
     void processMaterial(aiMaterial* aiMat, const std::string& directory, std::shared_ptr<Material> material);
 
