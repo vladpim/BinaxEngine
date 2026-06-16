@@ -9,6 +9,121 @@
 #include "Physics/PhysicsWorld.h"
 #include "Graphics/Shader.h"
 #include <glm/gtx/quaternion.hpp>
+#include <nlohmann/json.hpp>
+#include <GLFW/glfw3.h>
+#include "Editor/EditorUI.h"
+
+extern EditorUI g_EditorUI;
+
+void SceneManager::SaveScene(const std::string& filename) {
+    nlohmann::json sceneJson;
+    sceneJson["version"] = 1;
+    nlohmann::json objectsJson = nlohmann::json::array();
+    for (const auto& obj : m_Objects) {
+        auto objJson = obj->ToJson();
+        // Находим индекс родителя
+        int parentIdx = -1;
+        if (auto parent = obj->GetParent()) {
+            auto it = std::find(m_Objects.begin(), m_Objects.end(), parent);
+            if (it != m_Objects.end()) {
+                parentIdx = static_cast<int>(std::distance(m_Objects.begin(), it));
+            }
+        }
+        objJson["parentIndex"] = parentIdx;
+        objectsJson.push_back(objJson);
+    }
+    sceneJson["objects"] = objectsJson;
+    // Активная камера
+    int activeCamIdx = -1;
+    if (m_ActiveCamera) {
+        auto it = std::find(m_Objects.begin(), m_Objects.end(), m_ActiveCamera);
+        if (it != m_Objects.end()) {
+            activeCamIdx = static_cast<int>(std::distance(m_Objects.begin(), it));
+        }
+    }
+    sceneJson["activeCameraIndex"] = activeCamIdx;
+    extern EditorUI g_EditorUI;
+    sceneJson["editorSettings"] = g_EditorUI.SettingsToJson();
+    // Сохраняем в файл
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Failed to save scene to " << filename << std::endl;
+        return;
+    }
+    file << sceneJson.dump(4);
+    std::cout << "Scene saved to " << filename << std::endl;
+}
+
+void SceneManager::LoadScene(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Failed to load scene from " << filename << std::endl;
+        return;
+    }
+
+    nlohmann::json sceneJson;
+    file >> sceneJson;
+
+    // Очищаем текущую сцену
+    // Сначала удаляем физику, чтобы избежать утечек
+    for (auto& obj : m_Objects) {
+        if (obj->HasRigidBody()) {
+            obj->RemoveRigidBody();
+        }
+    }
+    m_Objects.clear();
+    m_SelectedObject.reset();
+    m_ActiveCamera.reset();
+
+    // Временный вектор для хранения индексов родителей
+    std::vector<int> parentIndices;
+    if (sceneJson.contains("editorSettings")) {
+    g_EditorUI.SettingsFromJson(sceneJson["editorSettings"]);
+    // Применить настройки, требующие немедленного действия
+    glfwSwapInterval(g_EditorUI.GetSettings().vsync ? 1 : 0);
+    if (g_EditorUI.GetSettings().skyboxSeamless)
+        glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+    else
+        glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+}
+
+    // Загружаем объекты
+    if (sceneJson.contains("objects")) {
+        for (const auto& objJson : sceneJson["objects"]) {
+            auto obj = std::make_shared<GameObject>("");
+            if (obj->FromJson(objJson)) {
+                m_Objects.push_back(obj);
+                int parentIdx = objJson.value("parentIndex", -1);
+                parentIndices.push_back(parentIdx);
+            }
+        }
+    }
+
+    // Восстанавливаем иерархию
+    for (size_t i = 0; i < m_Objects.size(); ++i) {
+        int parentIdx = parentIndices[i];
+        if (parentIdx >= 0 && parentIdx < static_cast<int>(m_Objects.size())) {
+            m_Objects[i]->SetParent(m_Objects[parentIdx], true);
+        }
+    }
+
+    // Восстанавливаем активную камеру
+    if (sceneJson.contains("activeCameraIndex")) {
+        int idx = sceneJson["activeCameraIndex"];
+        if (idx >= 0 && idx < static_cast<int>(m_Objects.size())) {
+            SetActiveCamera(m_Objects[idx]);
+        }
+    }
+
+    // Обновляем физику для объектов с коллайдерами
+    for (auto& obj : m_Objects) {
+        if (obj->GetColliderType() != COLLIDER_NONE) {
+            obj->UpdatePhysicsBody();
+        }
+    }
+
+    std::cout << "Scene loaded from " << filename << std::endl;
+}
 
 SceneManager::SceneManager() {
     m_Initialized = false;
@@ -132,12 +247,28 @@ void SceneManager::Render(Shader& shader) {
 
 void SceneManager::RenderDepth(Shader& depthShader) {
     if (!m_Initialized) return;
+    depthShader.Use();
+
     for (const auto& obj : m_Objects) {
-        if (obj->IsVisible() && obj->GetMesh() && obj->CastShadows()) {
-            glm::mat4 model = obj->GetTransformMatrix();
-            depthShader.SetMat4("model", glm::value_ptr(model));
-            obj->GetMesh()->Draw();
+        if (!obj->IsVisible() || !obj->GetMesh() || !obj->CastShadows()) continue;
+
+        auto mat = obj->GetMaterial() ? obj->GetMaterial() : (obj->GetMesh()->GetMaterial());
+        bool alphaTest = false;
+        if (mat && mat->transparent && mat->alphaTestShadows && mat->HasDiffuse()) {
+            alphaTest = true;
+            depthShader.SetBool("alphaTestShadows", true);
+            depthShader.SetBool("hasDiffuseTexture", true);
+            depthShader.SetFloat("alphaCutoff", mat->alphaCutoff);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, mat->GetDiffuseTextureID());
+            depthShader.SetInt("diffuseTexture", 0);
+        } else {
+            depthShader.SetBool("alphaTestShadows", false);
+            depthShader.SetBool("hasDiffuseTexture", false);
         }
+
+        depthShader.SetMat4("model", glm::value_ptr(obj->GetTransformMatrix()));
+        obj->GetMesh()->Draw();
     }
 }
 
@@ -621,12 +752,4 @@ void SceneManager::RenderAudioGizmos(Shader& shader, const glm::mat4& view, cons
     glDrawArrays(GL_LINES, 0, (GLsizei)vertexCount);
     glBindVertexArray(0);
     glLineWidth(1.0f);
-}
-
-void SceneManager::SaveScene(const std::string& filename) {
-    std::cout << "Saving scene to: " << filename << std::endl;
-}
-
-void SceneManager::LoadScene(const std::string& filename) {
-    std::cout << "Loading scene from: " << filename << std::endl;
 }
