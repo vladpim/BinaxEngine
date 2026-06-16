@@ -1,5 +1,4 @@
 # BinaxEngine - Game Engine (v0.8.0)
-
 ---
 
 ![BinaxEngine Editor](resources/screenshots/binaxscreenshot.png)
@@ -7,9 +6,9 @@
 ---
 *(Developed and maintained by a 14‑year‑old developer passionate about low‑level systems and graphics)*
 
-## ✨ Features
+## Features
 
-### 🖥️ Editor & Workflow
+### Editor & Workflow
 - **ImGui-based interface** with docking, viewports, and custom themes
 - **ImGuizmo integration** – translate, rotate, scale objects with snap support
 - **Hierarchy panel** – parent-child object relationships with drag‑and‑drop
@@ -19,7 +18,7 @@
 - **Menu bar** – file operations (Save Scene, Load Scene), edit (duplicate, delete), view (wireframe, grid, gizmo, theme editor, VSync), physics (active physics, reset), skybox & shadows settings
 - **Hotkeys** – Ctrl+S (save current scene), Ctrl+O (load scene), Ctrl+D (duplicate), Delete (remove object), G (toggle grid), T/R/E (gizmo mode), X (gizmo local/world), ESC (release mouse)
 
-### 🎨 Graphics & Rendering
+### Graphics & Rendering
 - **OpenGL 3.3 core profile** with seamless cubemap support
 - **PBR materials** – metallic, roughness, ambient occlusion, emission
 - **Normal mapping** with adjustable strength (0–5x)
@@ -34,14 +33,14 @@
 - **Grid** – customizable semi‑transparent grid with distance fade
 - **Visual gizmos** – camera frustum (pyramid), light range (sphere/cone), audio range (sphere) – each toggleable per object
 
-### 🔊 Audio (miniaudio)
+### Audio (miniaudio)
 - **2D / 3D spatial audio** – distance attenuation, listener follows active camera
 - **Audio Source component** – add/remove via "Add Component" menu
 - **Real‑time parameter updates** – volume, loop, min/max distance, 3D toggle – without restarting playback
 - **Visual audio gizmo** – white wireframe sphere showing max distance (toggleable)
 - **Supports WAV, MP3, FLAC, OGG** via miniaudio
-
-### 🧠 Physics (Bullet 3.25)
+- 
+### Physics (Bullet 3.25)
 - **Rigid body dynamics** – mass, gravity, collisions
 - **Collider shapes** – Box, Sphere, Capsule
 - **Material properties** – friction (0–1), restitution (0–1), rolling friction
@@ -50,7 +49,7 @@
 - **Physics controls** – "Active Physics" toggle, "Return" reset to initial positions
 - **Real‑time synchronization** – transforms updated automatically
 
-### 📦 Asset Import (Assimp)
+### Asset Import (Assimp)
 - **Model formats** – OBJ, FBX, DAE, BLEND, 3DS, STL
 - **Full Unicode support** – Cyrillic characters in filenames and paths
 - **Hierarchical import** – preserves object hierarchy, position, rotation, and scale from nodes
@@ -58,7 +57,7 @@
 - **PBR parameter reading** – metallic/roughness factors from file
 - **Mesh naming** – retains original mesh names
 
-### 🎛️ Component System
+### Component System
 - **Transform** – position, rotation, scale (with non‑uniform scale warning)
 - **Appearance** – color, visibility
 - **Light** – type, color, intensity, range, angle, direction, volumetric cone (shafts)
@@ -69,14 +68,14 @@
 - **Audio Source** – load audio file, volume, loop, 3D toggle, min/max distance, play/stop, show gizmo
 - **Camera** – FOV, near/far plane, switch active camera, show frustum gizmo
 
-### 💾 Scene Serialization (.bxlvl)
+### Scene Serialization (.bxlvl)
 - **Complete scene save/load** – objects, hierarchy, transforms, meshes (primitive or model), PBR materials, lights, cameras, physics bodies, audio sources, fog
 - **Embedded editor settings** – VSync, snap increments, shadow configs, background color, ambient strength – all stored inside the scene file (no separate config)
 - **Smart workflows** – Ctrl+S overwrites the current scene without dialogs; "Save As" and "Load" via native file picker
 
 ---
 
-## 🆕 What's New in v0.8.0
+## What's New in v0.8.0
 
 ### Rendering and Dynamic Shadows
 - **Adaptive Dual‑Zone Shadows** – two independent shadow modes: High Quality Mode (sharp, up to 30 m) and Long‑Distance Mode (blurry, up to 150 m), switchable via checkbox.
@@ -107,7 +106,7 @@
 
 ---
 
-## 🐛 Fixes & Improvements (v0.8.0)
+## Fixes & Improvements (v0.8.0)
 - Fixed shadow clipping when camera moves away from origin.
 - Fixed crash when loading 1‑channel (roughness, metallic, AO) textures.
 - Fixed double-declaration of `mat` in `GameObject::Draw`.
@@ -119,7 +118,7 @@
 
 ---
 
-## 📥 Installation & Build
+## Installation & Build
 
 ### Prerequisites
 - Windows 10/11
@@ -127,22 +126,53 @@
 - CMake 3.15+
 - Git
 
-### Build Steps
-```bash
-git clone https://github.com/VladPim/BinaxEngine.git
-cd BinaxEngine
-mkdir build
-cd build
-cmake .. -A x64
-cmake --build . --config Release
+### Dependencies (Important!)
+
+BinaxEngine relies on several third‑party libraries. All of them **must** be placed inside the `libs/` folder of the repository with the exact directory structure expected by the CMake build script (see `CMakeLists.txt`).
+
+You can download the required libraries from their official sources or use pre‑built binaries. The expected structure is:
+
+```
+libs/
+├── glfw/          # GLFW 3.x (include + lib)
+├── glew/          # GLEW 2.x (include + lib)
+├── imgui/         # Dear ImGui (source files + backends + ImGuizmo)
+├── glm/           # GLM (header‑only)
+├── stb/           # stb_image.h (header‑only)
+├── assimp/        # Assimp 5.x (include + lib)
+├── bullet/        # Bullet Physics 3.x (source or prebuilt)
+├── miniaudio/     # miniaudio.h (header‑only)
+└── json/          # nlohmann/json (header‑only)
 ```
 
-### Run
-After build, execute `BinaxEngine.exe` from `build/Release/`.
+For detailed paths and library names, refer to the `CMakeLists.txt` file. If a library is not found, CMake will produce an error or warning during configuration.
+
+### Build Steps
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/VladPim/BinaxEngine.git
+   cd BinaxEngine
+   ```
+
+2. Make sure all dependencies are placed in the `libs/` folder as described above.
+
+3. Build with CMake:
+   ```bash
+   mkdir build
+   cd build
+   cmake .. -A x64
+   cmake --build . --config Release
+   ```
+
+4. Run the executable:
+   ```
+   build/Release/BinaxEngine.exe
+   ```
 
 ---
 
-## 🕹️ Editor Controls
+## Editor Controls
 
 | Action                        | Keys                                         |
 |-------------------------------|----------------------------------------------|
@@ -162,7 +192,7 @@ After build, execute `BinaxEngine.exe` from `build/Release/`.
 
 ---
 
-## 🧪 Example: Creating a Physics Scene
+## Example: Creating a Physics Scene
 1. Add a **Cube** (via `+ Add Object → Cube`) – it gets a Box collider and is static by default.
 2. Add a second **Cube**, move it up (e.g., Y = 3).
 3. Select the second cube, click `Add Component → Physics`.
@@ -172,7 +202,7 @@ After build, execute `BinaxEngine.exe` from `build/Release/`.
 
 ---
 
-## 🔊 Example: Adding 3D Sound
+## Example: Adding 3D Sound
 1. Create an empty object or select an existing one.
 2. Go to `Inspector → Components → Add Component → Audio Source`.
 3. Load a sound file (WAV, MP3, etc.) via the `...` button.
@@ -182,7 +212,7 @@ After build, execute `BinaxEngine.exe` from `build/Release/`.
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 ```
 BinaxEngine/
 ├── assets/                 # shaders, textures, models
@@ -201,7 +231,7 @@ BinaxEngine/
 
 ---
 
-## 🔮 Planned for Future Releases
+## Planned for Future Releases
 - Particle system
 - Scripting (Lua)
 - Post‑processing (bloom, HDR)
@@ -210,6 +240,3 @@ BinaxEngine/
 - More audio features (attenuation curves, Doppler effect)
 
 ---
-
-**Enjoy building with BinaxEngine!** 🚀
-```
