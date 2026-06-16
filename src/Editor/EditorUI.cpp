@@ -95,7 +95,7 @@ bool EditorUI::Initialize(GLFWwindow* window, SceneManager* sceneManager) {
 
     // Настройка сохранения окон (как у вас было)
     std::filesystem::create_directories("saves");
-    io.IniFilename = "saves/editor.uiconf";
+    io.IniFilename = "gui.ini";
     m_FirstLaunch = !std::filesystem::exists("saves/editor.uiconf");
 
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -109,12 +109,8 @@ bool EditorUI::Initialize(GLFWwindow* window, SceneManager* sceneManager) {
         std::cerr << "Failed to initialize ImGui OpenGL backend" << std::endl;
         return false;
     }
-
     SetupImGuiStyle();
     m_Theme.ApplyToImGui();
-
-    LoadEditorSettings();  // загружает всё и сразу применяет vsync/seamless
-
     std::cout << "EditorUI initialized successfully" << std::endl;
     return true;
 }
@@ -221,21 +217,24 @@ void EditorUI::DrawMainMenuBar() {
     if (!path.empty()) {
         auto model = std::make_shared<Model>(path);
         if (model->IsLoaded()) {
-            const auto& meshes = model->GetMeshes();
-            if (meshes.size() == 1) {
-                // Один меш: создаём объект с именем файла
-                auto obj = m_SceneManager->CreateGameObject(GetFileNameWithoutExt(path));
-                obj->SetMesh(meshes[0]);
-                if (meshes[0]->GetMaterial()) obj->SetMaterial(meshes[0]->GetMaterial());
-            } else {
-                // Несколько мешей: создаём корневой объект и дочерние
-                auto root = m_SceneManager->CreateGameObject(GetFileNameWithoutExt(path));
-                for (const auto& mesh : meshes) {
-                    auto child = m_SceneManager->CreateGameObject(mesh->GetName());
-                    child->SetMesh(mesh);
-                    if (mesh->GetMaterial()) child->SetMaterial(mesh->GetMaterial());
-                    root->AddChild(child);
+            // Создаём корневой объект с именем файла
+            auto root = m_SceneManager->CreateGameObject(GetFileNameWithoutExt(path));
+            for (const auto& mesh : model->GetMeshes()) {
+                auto obj = m_SceneManager->CreateGameObject(mesh->GetName());
+                obj->SetMesh(mesh);
+                if (mesh->GetMaterial()) {
+                    obj->SetMaterial(mesh->GetMaterial());
                 }
+                // Извлекаем трансформацию из мировой матрицы меша
+                glm::vec3 scale, translation, skew;
+                glm::quat rotation;
+                glm::vec4 perspective;
+                glm::decompose(mesh->GetWorldTransform(), scale, rotation, translation, skew, perspective);
+                obj->SetPosition(translation);
+                obj->SetRotation(glm::degrees(glm::eulerAngles(rotation)));
+                obj->SetScale(scale);
+                // Добавляем как дочерний к корню
+                root->AddChild(obj);
             }
         } else {
             std::cerr << "Failed to load model: " << path << std::endl;
@@ -259,8 +258,19 @@ if (ImGui::BeginMenu("Physics")) {
 
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
-                if (m_SceneManager) m_SceneManager->SaveScene("scene.binax");
-            }
+    std::string path = SaveFileDialog("Binax Level\0*.bxlvl\0", "bxlvl");
+    if (!path.empty() && m_SceneManager) {
+        m_CurrentScenePath = path;
+        m_SceneManager->SaveScene(path);
+    }
+}
+if (ImGui::MenuItem("Load Scene", "Ctrl+O")) {
+    std::string path = OpenFileDialog("*.bxlvl");
+    if (!path.empty() && m_SceneManager) {
+        m_CurrentScenePath = path;
+        m_SceneManager->LoadScene(path);
+    }
+}
             if (ImGui::MenuItem("Exit", "Alt+F4")) {
                 glfwSetWindowShouldClose(m_Window, GLFW_TRUE);
             }
@@ -297,7 +307,6 @@ if (ImGui::BeginMenu("View")) {
     ImGui::Separator();
     if (ImGui::MenuItem("VSync", "", &m_Settings.vsync)) {
         glfwSwapInterval(m_Settings.vsync ? 1 : 0);
-        SaveEditorSettings();   // вместо SaveVSyncSettings
     }
     ImGui::EndMenu();
 }
@@ -372,7 +381,6 @@ void EditorUI::DrawGizmoToolbar() {
     // Snap controls
 bool oldUseSnap = m_Settings.useSnap;
     ImGui::Checkbox("Snap", &m_Settings.useSnap);
-    if (oldUseSnap != m_Settings.useSnap) SaveEditorSettings();   // заменено
 
     if (m_Settings.useSnap) {
         ImGui::SameLine();
@@ -380,15 +388,12 @@ bool oldUseSnap = m_Settings.useSnap;
         if (m_CurrentGizmoOperation == ImGuizmo::TRANSLATE) {
             float oldVal = m_Settings.snapTranslation;
             ImGui::DragFloat("##SnapT", &m_Settings.snapTranslation, 0.01f, 0.01f, 10.0f, "%.2f");
-            if (oldVal != m_Settings.snapTranslation) SaveEditorSettings();
         } else if (m_CurrentGizmoOperation == ImGuizmo::ROTATE) {
             float oldVal = m_Settings.snapRotation;
             ImGui::DragFloat("##SnapR", &m_Settings.snapRotation, 0.1f, 0.1f, 180.0f, "%.1f°");
-            if (oldVal != m_Settings.snapRotation) SaveEditorSettings();
         } else if (m_CurrentGizmoOperation == ImGuizmo::SCALE) {
             float oldVal = m_Settings.snapScale;
             ImGui::DragFloat("##SnapS", &m_Settings.snapScale, 0.01f, 0.01f, 10.0f, "%.2f");
-            if (oldVal != m_Settings.snapScale) SaveEditorSettings();
         }
         ImGui::PopItemWidth();
     }
@@ -481,14 +486,14 @@ if (ImGui::MenuItem("Camera")) {
 
     ImGui::Separator();
 if (ImGui::MenuItem("Cube")) {
-    auto cube = m_SceneManager->CreateGameObject("Cube");
-    cube->SetMesh(Primitives::CreateCube());  
-    cube->SetColor(glm::vec3(0.8f, 0.3f, 0.2f));
+    auto obj = m_SceneManager->CreateGameObject("Cube");
+    obj->SetMeshFromPrimitive("cube");
+    obj->SetColor(glm::vec3(0.8f, 0.3f, 0.2f));
 }
 if (ImGui::MenuItem("Sphere")) {
-    auto sphere = m_SceneManager->CreateGameObject("Sphere");
-    sphere->SetMesh(Primitives::CreateSphere()); 
-    sphere->SetColor(glm::vec3(0.3f, 0.8f, 0.2f));
+    auto obj = m_SceneManager->CreateGameObject("Sphere");
+    obj->SetMeshFromPrimitive("sphere");
+    obj->SetColor(glm::vec3(0.8f, 0.3f, 0.2f));
 }
     ImGui::EndPopup();
 }
@@ -956,10 +961,10 @@ void EditorUI::DrawMaterialControls(std::shared_ptr<GameObject> obj) {
     ImGui::Text("Material Parameters");
     
     if (material->HasNormal()) {
-        float strength = material->normalStrength;
-        if (ImGui::SliderFloat("Normal Strength", &strength, 0.0f, 2.0f))
-            material->normalStrength = strength;
-    }
+    float strength = material->normalStrength;
+    if (ImGui::SliderFloat("Normal Strength", &strength, 0.0f, 5.0f))  // 0–5
+        material->normalStrength = strength;
+}
 
     float uvScale[2] = { material->uvScale.x, material->uvScale.y };
     if (ImGui::DragFloat2("UV Scale", uvScale, 0.1f, 0.1f, 10.0f))
@@ -997,6 +1002,51 @@ void EditorUI::DrawMaterialControls(std::shared_ptr<GameObject> obj) {
     if (ImGui::Checkbox("Enable Environment Reflections", &reflectionsEnabled)) {
         material->enableReflections = reflectionsEnabled;
     }
+
+    // AO Strength
+if (material->HasAO()) {
+    float aoStr = material->aoStrength;
+    if (ImGui::SliderFloat("AO Strength", &aoStr, 0.0f, 5.0f))        // 0–5
+        material->aoStrength = aoStr;
+}
+// Roughness Strength
+if (material->HasRoughness()) {
+    float roughStr = material->roughnessStrength;
+    if (ImGui::SliderFloat("Roughness Strength", &roughStr, 0.0f, 5.0f)) // 0–5
+        material->roughnessStrength = roughStr;
+}
+
+    /// Transparency
+ImGui::Separator();
+ImGui::Text("Transparency");
+bool transp = material->transparent;
+if (ImGui::Checkbox("Transparent", &transp)) {
+    material->transparent = transp;
+}
+if (transp) {
+    float alphaVal = material->alpha;
+    if (ImGui::SliderFloat("Alpha", &alphaVal, 0.0f, 1.0f)) {
+        material->alpha = alphaVal;
+    }
+    bool alphaTestMode = material->alphaTest;
+    if (ImGui::Checkbox("Alpha Test (discard, for foliage)", &alphaTestMode)) {
+        material->alphaTest = alphaTestMode;
+    }
+    if (alphaTestMode) {
+        float cutoff = material->alphaCutoff;
+        if (ImGui::SliderFloat("Alpha Cutoff", &cutoff, 0.0f, 1.0f)) {
+            material->alphaCutoff = cutoff;
+        }
+        ImGui::TextColored(ImVec4(0.8f,0.8f,0.0f,1.0f), "Pixels with alpha < cutoff are discarded (no blending)");
+        
+        bool shadowsAlphaTest = material->alphaTestShadows;
+        if (ImGui::Checkbox("Alpha Test Shadows (foliage shadows)", &shadowsAlphaTest)) {
+            material->alphaTestShadows = shadowsAlphaTest;
+        }
+    } else {
+        ImGui::TextColored(ImVec4(0.5f,0.8f,1.0f,1.0f), "Blending mode (transparency)");
+    }
+}
 
     // ---- Material File Operations ----
     ImGui::Separator();
@@ -1148,7 +1198,6 @@ void EditorUI::DrawSceneSettings() {
         // VSync с сохранением
         if (ImGui::Checkbox("VSync", &m_Settings.vsync)) {
             glfwSwapInterval(m_Settings.vsync ? 1 : 0);
-            SaveEditorSettings();   // добавлено
         }
 
         ImGui::Separator();
@@ -1179,8 +1228,21 @@ void EditorUI::HandleShortcuts() {
     ImGuiIO& io = ImGui::GetIO();
 
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) {
-        if (m_SceneManager) m_SceneManager->SaveScene("scene.binax");
+    if (m_SceneManager) {
+        if (m_CurrentScenePath.empty()) {
+            // Если путь ещё не задан, открываем диалог
+            std::string path = SaveFileDialog("Binax Level\0*.bxlvl\0", "bxlvl");
+            if (!path.empty()) {
+                m_CurrentScenePath = path;
+                m_SceneManager->SaveScene(path);
+            }
+        } else {
+            // Сохраняем без диалога
+            m_SceneManager->SaveScene(m_CurrentScenePath);
+            std::cout << "Scene saved to " << m_CurrentScenePath << std::endl;
+        }
     }
+}
 
     // Shift + A — фокус на окне Hierarchy
 if (ImGui::IsKeyPressed(ImGuiKey_A) && ImGui::GetIO().KeyShift) {
@@ -1271,24 +1333,22 @@ void EditorUI::DrawThemeEditor() {
 
 void EditorUI::DrawShadowsSettings() {
     if (!m_ShowShadowsSettings) return;
-
     ImGui::Begin("Shadows Settings", &m_ShowShadowsSettings);
-
     ImGui::Checkbox("Enable Shadows", &m_Settings.shadows_enabled);
     ImGui::SliderFloat("Shadow Bias", &m_Settings.shadow_bias, 0.0f, 0.01f, "%.5f");
-
     ImGui::Separator();
     ImGui::Text("Quality");
-    // Для размера карты пока не будем менять динамически, просто показываем
-    ImGui::SliderInt("Shadow Map Size", &m_Settings.shadowMapSize, 512, 4096, "%d");
-    // Увеличиваем диапазон softness до 5
+    ImGui::SliderInt("Shadow Map Size", &m_Settings.shadowMapSize, 1024, 8192, "%d");
     ImGui::SliderFloat("Softness", &m_Settings.shadowSoftness, 0.0f, 5.0f, "%.2f");
     const char* sampleModes[] = { "4 samples", "9 samples" };
     int currentSamples = (m_Settings.shadowSamples == 4) ? 0 : 1;
     if (ImGui::Combo("PCF Samples", &currentSamples, sampleModes, 2)) {
         m_Settings.shadowSamples = (currentSamples == 0) ? 4 : 9;
     }
-
+    ImGui::Separator();
+    ImGui::Text("Range");
+    ImGui::SliderFloat("High Quality Radius (shadows are perfect inside)", &m_Settings.shadowNearQualityRadius, 10.0f, 80.0f, "%.0f m");
+    ImGui::SliderFloat("Shadow Max Distance (no shadows beyond)", &m_Settings.shadowFarClip, 20.0f, 200.0f, "%.0f m");
     ImGui::End();
 }
 
@@ -1330,7 +1390,6 @@ void EditorUI::DrawSkyboxSettings() {
             glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
         else
             glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-        SaveEditorSettings();   // заменено (было SaveSnapSettings)
     }
 
     ImGui::End();
@@ -1344,36 +1403,64 @@ void EditorUI::SetSelectedObject(std::shared_ptr<GameObject> obj) {
 }
 
 std::string EditorUI::OpenFileDialog(const char* filter) {
-    char filename[MAX_PATH] = {};
-    OPENFILENAMEA ofn;
+    wchar_t filename[MAX_PATH] = {};
+    OPENFILENAMEW ofn;
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = glfwGetWin32Window(m_Window);
-    ofn.lpstrFilter = filter;
+
+    // Конвертируем фильтр в широкую строку (замена ';' на '\0')
+    std::wstring wfilter;
+    if (filter) {
+        std::string filterStr = filter;
+        for (char c : filterStr) {
+            if (c == ';') wfilter += L'\0';
+            else wfilter += (wchar_t)c;
+        }
+        wfilter += L'\0';
+    }
+    ofn.lpstrFilter = wfilter.c_str();
     ofn.lpstrFile = filename;
     ofn.nMaxFile = MAX_PATH;
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
 
-    if (GetOpenFileNameA(&ofn)) {
-        return std::string(filename);
+    if (GetOpenFileNameW(&ofn)) {
+        // Конвертируем широкую строку в UTF-8
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, filename, -1, nullptr, 0, nullptr, nullptr);
+        std::string utf8(size_needed - 1, 0);
+        WideCharToMultiByte(CP_UTF8, 0, filename, -1, &utf8[0], size_needed, nullptr, nullptr);
+        return utf8;
     }
     return "";
 }
 
 std::string EditorUI::SaveFileDialog(const char* filter, const char* defaultExt) {
-    char filename[MAX_PATH] = {};
-    OPENFILENAMEA ofn;
+    wchar_t filename[MAX_PATH] = {};
+    OPENFILENAMEW ofn;
     ZeroMemory(&ofn, sizeof(ofn));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = glfwGetWin32Window(m_Window);
-    ofn.lpstrFilter = filter;
+
+    std::wstring wfilter;
+    if (filter) {
+        std::string filterStr = filter;
+        for (char c : filterStr) {
+            if (c == ';') wfilter += L'\0';
+            else wfilter += (wchar_t)c;
+        }
+        wfilter += L'\0';
+    }
+    ofn.lpstrFilter = wfilter.c_str();
     ofn.lpstrFile = filename;
     ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrDefExt = defaultExt;
+    ofn.lpstrDefExt = std::wstring(defaultExt, defaultExt + strlen(defaultExt)).c_str();
     ofn.Flags = OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY;
-    
-    if (GetSaveFileNameA(&ofn)) {
-        return std::string(filename);
+
+    if (GetSaveFileNameW(&ofn)) {
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, filename, -1, nullptr, 0, nullptr, nullptr);
+        std::string utf8(size_needed - 1, 0);
+        WideCharToMultiByte(CP_UTF8, 0, filename, -1, &utf8[0], size_needed, nullptr, nullptr);
+        return utf8;
     }
     return "";
 }
@@ -1446,37 +1533,62 @@ void EditorUI::DrawPhysicsComponents(std::shared_ptr<GameObject> selected) {
     }
 }
 
-void EditorUI::LoadEditorSettings() {
-    auto data = LoadKeyValueFile("saves/editorscene.settingscfg");
-    if (data.empty()) return;
-
-    try {
-        // Snap
-        if (data.count("useSnap")) m_Settings.useSnap = (std::stoi(data["useSnap"]) != 0);
-        if (data.count("snapTranslation")) m_Settings.snapTranslation = std::stof(data["snapTranslation"]);
-        if (data.count("snapRotation")) m_Settings.snapRotation = std::stof(data["snapRotation"]);
-        if (data.count("snapScale")) m_Settings.snapScale = std::stof(data["snapScale"]);
-        if (data.count("vsync")) m_Settings.vsync = (std::stoi(data["vsync"]) != 0);
-        if (data.count("skyboxSeamless")) m_Settings.skyboxSeamless = (std::stoi(data["skyboxSeamless"]) != 0);
-    } catch (...) {
-        std::cerr << "Failed to parse editorscene.settingscfg" << std::endl;
-    }
-
-    // Применяем настройки, требующие немедленного действия
-    glfwSwapInterval(m_Settings.vsync ? 1 : 0);
-    if (m_Settings.skyboxSeamless)
-        glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-    else
-        glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+nlohmann::json EditorUI::SettingsToJson() const {
+    nlohmann::json j;
+    j["useSnap"] = m_Settings.useSnap;
+    j["snapTranslation"] = m_Settings.snapTranslation;
+    j["snapRotation"] = m_Settings.snapRotation;
+    j["snapScale"] = m_Settings.snapScale;
+    j["vsync"] = m_Settings.vsync;
+    j["skyboxSeamless"] = m_Settings.skyboxSeamless;
+    j["shadowNearQualityRadius"] = m_Settings.shadowNearQualityRadius;
+    j["shadowFarClip"] = m_Settings.shadowFarClip;
+    j["shadowHighQualityMode"] = m_Settings.shadowHighQualityMode;
+    j["shadowMapSize"] = m_Settings.shadowMapSize;
+    j["shadowSoftness"] = m_Settings.shadowSoftness;
+    j["shadowSamples"] = m_Settings.shadowSamples;
+    j["shadows_enabled"] = m_Settings.shadows_enabled;
+    j["shadow_bias"] = m_Settings.shadow_bias;
+    j["wireframe_mode"] = m_Settings.wireframe_mode;
+    j["grid_enabled"] = m_Settings.grid_enabled;
+    j["show_gizmo"] = m_Settings.show_gizmo;
+    // можно добавить bg_color, ambient и другие
+    j["bg_color"] = { m_Settings.bg_color[0], m_Settings.bg_color[1], m_Settings.bg_color[2] };
+    j["ambientStrength"] = m_Settings.ambientStrength;
+    return j;
 }
 
-void EditorUI::SaveEditorSettings() {
-    std::unordered_map<std::string, std::string> data;
-    data["useSnap"] = std::to_string(m_Settings.useSnap ? 1 : 0);
-    data["snapTranslation"] = std::to_string(m_Settings.snapTranslation);
-    data["snapRotation"] = std::to_string(m_Settings.snapRotation);
-    data["snapScale"] = std::to_string(m_Settings.snapScale);
-    data["vsync"] = std::to_string(m_Settings.vsync ? 1 : 0);
-    data["skyboxSeamless"] = std::to_string(m_Settings.skyboxSeamless ? 1 : 0);
-    SaveKeyValueFile("saves/editorscene.settingscfg", data);
-} 
+bool EditorUI::SettingsFromJson(const nlohmann::json& j) {
+    try {
+        if (j.contains("useSnap")) m_Settings.useSnap = j["useSnap"];
+        if (j.contains("snapTranslation")) m_Settings.snapTranslation = j["snapTranslation"];
+        if (j.contains("snapRotation")) m_Settings.snapRotation = j["snapRotation"];
+        if (j.contains("snapScale")) m_Settings.snapScale = j["snapScale"];
+        if (j.contains("vsync")) m_Settings.vsync = j["vsync"];
+        if (j.contains("skyboxSeamless")) m_Settings.skyboxSeamless = j["skyboxSeamless"];
+        if (j.contains("shadowNearQualityRadius")) m_Settings.shadowNearQualityRadius = j["shadowNearQualityRadius"];
+        if (j.contains("shadowFarClip")) m_Settings.shadowFarClip = j["shadowFarClip"];
+        if (j.contains("shadowHighQualityMode")) m_Settings.shadowHighQualityMode = j["shadowHighQualityMode"];
+        if (j.contains("shadowMapSize")) m_Settings.shadowMapSize = j["shadowMapSize"];
+        if (j.contains("shadowSoftness")) m_Settings.shadowSoftness = j["shadowSoftness"];
+        if (j.contains("shadowSamples")) m_Settings.shadowSamples = j["shadowSamples"];
+        if (j.contains("shadows_enabled")) m_Settings.shadows_enabled = j["shadows_enabled"];
+        if (j.contains("shadow_bias")) m_Settings.shadow_bias = j["shadow_bias"];
+        if (j.contains("wireframe_mode")) m_Settings.wireframe_mode = j["wireframe_mode"];
+        if (j.contains("grid_enabled")) m_Settings.grid_enabled = j["grid_enabled"];
+        if (j.contains("show_gizmo")) m_Settings.show_gizmo = j["show_gizmo"];
+        if (j.contains("bg_color")) {
+            auto col = j["bg_color"];
+            if (col.size() >= 3) {
+                m_Settings.bg_color[0] = col[0];
+                m_Settings.bg_color[1] = col[1];
+                m_Settings.bg_color[2] = col[2];
+            }
+        }
+        if (j.contains("ambientStrength")) m_Settings.ambientStrength = j["ambientStrength"];
+        return true;
+    } catch (...) {
+        std::cerr << "Failed to parse editor settings from scene" << std::endl;
+        return false;
+    }
+}
