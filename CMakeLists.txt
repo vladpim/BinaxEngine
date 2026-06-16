@@ -99,20 +99,20 @@ message(STATUS "JSON: ${JSON_INCLUDE}")
 
 # ========== ИСХОДНЫЕ ФАЙЛЫ ==========
 set(SOURCES
-    src/main.cpp
-    src/Graphics/Shader.cpp
-    src/Graphics/Mesh.cpp
-    src/Graphics/Primitives.cpp
-    src/Graphics/Material.cpp
-    src/Graphics/Skybox.cpp
-    src/Graphics/Model.cpp
-    src/Scene/GameObject.cpp
-    src/Scene/SceneManager.cpp
-    src/Scene/Camera.cpp
-    src/Scene/Frustum.cpp
-    src/Editor/EditorUI.cpp
-    src/Physics/PhysicsWorld.cpp
-    src/Audio/AudioEngine.cpp
+    main.cpp
+    Graphics/Shader.cpp
+    Graphics/Mesh.cpp
+    Graphics/Primitives.cpp
+    Graphics/Material.cpp
+    Graphics/Skybox.cpp
+    Graphics/Model.cpp
+    Scene/GameObject.cpp
+    Scene/SceneManager.cpp
+    Scene/Camera.cpp
+    Scene/Frustum.cpp
+    Editor/EditorUI.cpp
+    Physics/PhysicsWorld.cpp
+    Audio/AudioEngine.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
@@ -132,9 +132,7 @@ add_executable(BinaxEngine ${SOURCES} ${RESOURCES})
 
 # ========== ВКЛЮЧАЕМ ДИРЕКТОРИИ ==========
 target_include_directories(BinaxEngine PRIVATE
-    src
-    src/Editor
-    src/Physics
+    ${CMAKE_SOURCE_DIR}                # <--- ГЛАВНОЕ ИЗМЕНЕНИЕ: корень проекта
     ${GLFW_INCLUDE}
     ${GLEW_INCLUDE}
     ${IMGUI_DIR}
@@ -144,7 +142,7 @@ target_include_directories(BinaxEngine PRIVATE
     ${ASSETS_DIR}
     ${BULLET_INCLUDE}
     ${JSON_INCLUDE}
-    ${LIBS_DIR}        # <--- ДОБАВЛЕНО (для miniaudio.h)
+    ${LIBS_DIR}                        # для miniaudio.h
 )
 
 if(EXISTS "${ASSIMP_INCLUDE}")
@@ -170,8 +168,8 @@ target_link_libraries(BinaxEngine PRIVATE
     opengl32.lib
     comdlg32.lib
     ${BULLET_LIBS}
-    winmm.lib          # <--- ДОБАВЛЕНО (микрофон/аудио для miniaudio)
-    ole32.lib          # <--- ДОБАВЛЕНО (COM для miniaudio)
+    winmm.lib          # для miniaudio
+    ole32.lib          # COM для miniaudio
 )
 
 if(ASSIMP_LIBRARY)
