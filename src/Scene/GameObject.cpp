@@ -7,6 +7,8 @@
 #include "Physics/PhysicsWorld.h"
 #include <btBulletDynamicsCommon.h>
 #include "Audio/AudioEngine.h"
+#include "Graphics/Primitives.h"
+#include "Graphics/Model.h"
 
 GameObject::GameObject(const std::string& name)
     : m_Name(name) {
@@ -121,12 +123,27 @@ void GameObject::Draw(Shader& shader) const {
     shader.SetBool("receiveShadows", m_ReceiveShadows);
     shader.SetVec3("objectColor", m_Color.x, m_Color.y, m_Color.z);
 
-    // Выбираем материал: сначала свой, потом из меша
-    std::shared_ptr<Material> mat = m_Material;
-    if (!mat && m_Mesh) {
-        mat = m_Mesh->GetMaterial();
+    // Получаем материал (один раз)
+    auto mat = GetMaterial() ? GetMaterial() : (m_Mesh ? m_Mesh->GetMaterial() : nullptr);
+
+    // Настройка прозрачности и альфа-теста
+    if (mat && mat->transparent && mat->alpha < 1.0f) {
+        if (mat->alphaTest) {
+            glDisable(GL_BLEND);               // для альфа-теста (листва)
+        } else {
+            glEnable(GL_BLEND);                // для альфа-блендинга (стекло)
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
+        shader.SetFloat("alpha", mat->alpha);
+        shader.SetBool("alphaTest", mat->alphaTest);
+        shader.SetFloat("alphaCutoff", mat->alphaCutoff);
+    } else {
+        glDisable(GL_BLEND);
+        shader.SetFloat("alpha", 1.0f);
+        shader.SetBool("alphaTest", false);
     }
 
+    // Передаём параметры материала в шейдер
     if (mat) {
         shader.SetBool("enableReflections", mat->enableReflections);
         shader.SetBool("hasDiffuseTexture", mat->HasDiffuse());
@@ -135,6 +152,8 @@ void GameObject::Draw(Shader& shader) const {
         shader.SetFloat("roughness", mat->roughness);
         shader.SetVec2("uvScale", mat->uvScale.x, mat->uvScale.y);
         shader.SetFloat("normalStrength", mat->normalStrength);
+        shader.SetFloat("aoStrength", mat->aoStrength);
+        shader.SetFloat("roughnessStrength", mat->roughnessStrength);
         shader.SetBool("useWorldUV", mat->useWorldUV);
         shader.SetVec3("emissionColor", mat->emissionColor.x, mat->emissionColor.y, mat->emissionColor.z);
         shader.SetFloat("emissionIntensity", mat->emissionIntensity);
@@ -156,8 +175,10 @@ void GameObject::Draw(Shader& shader) const {
         shader.SetFloat("emissionIntensity", 0.0f);
     }
 
+    // Рисуем меш
     m_Mesh->Draw();
 
+    // Отключаем текстуры
     if (mat) {
         mat->UnbindTextures();
     }
@@ -646,4 +667,265 @@ void GameObject::DisableAudioSource() {
     m_AudioMinDistance = 1.0f;
     m_AudioMaxDistance = 20.0f;
     m_AudioSourceEnabled = false;
+}
+
+
+// ========== Сериализация ==========
+nlohmann::json GameObject::ToJson() const {
+    nlohmann::json j;
+    j["name"] = m_Name;
+    j["position"] = { m_Position.x, m_Position.y, m_Position.z };
+    j["rotation"] = { m_Rotation.x, m_Rotation.y, m_Rotation.z };
+    j["scale"] = { m_Scale.x, m_Scale.y, m_Scale.z };
+    j["visible"] = m_Visible;
+    j["color"] = { m_Color.x, m_Color.y, m_Color.z };
+    j["castShadows"] = m_CastShadows;
+    j["receiveShadows"] = m_ReceiveShadows;
+
+    // Свет
+    j["lightType"] = m_LightType;
+    if (m_LightType != LT_NONE) {
+        j["lightColor"] = { m_LightColor.x, m_LightColor.y, m_LightColor.z };
+        j["lightIntensity"] = m_LightIntensity;
+        j["lightRange"] = m_LightRange;
+        j["lightAngle"] = m_LightAngle;
+        j["lightDirection"] = { m_LightDirection.x, m_LightDirection.y, m_LightDirection.z };
+        j["shaftEnabled"] = m_ShaftEnabled;
+        j["shaftIntensity"] = m_ShaftIntensity;
+        j["shaftSoftness"] = m_ShaftSoftness;
+        j["shaftDensity"] = m_ShaftDensity;
+    }
+
+    // Камера
+    if (m_IsCamera) {
+        j["isCamera"] = true;
+        j["cameraFOV"] = m_CameraFOV;
+        j["cameraNear"] = m_CameraNear;
+        j["cameraFar"] = m_CameraFar;
+        j["frustumCulling"] = m_FrustumCulling;
+        j["showFrustumGizmo"] = m_ShowFrustumGizmo;
+    }
+
+    // Меш
+    if (m_Mesh) {
+        j["meshSourceType"] = m_MeshSourceType;
+        if (m_MeshSourceType == "primitive") {
+            j["meshPrimitive"] = m_MeshPrimitiveType;
+        } else if (m_MeshSourceType == "model") {
+            j["meshPath"] = m_MeshPath;
+        }
+    }
+
+    // Материал (сохраняем все параметры)
+    if (m_Material) {
+        j["material"] = m_Material->ToJson();
+    }
+
+    // Физика
+    j["colliderType"] = (int)m_colliderType;
+    j["mass"] = m_mass;
+    j["friction"] = m_friction;
+    j["restitution"] = m_restitution;
+    j["rollingFriction"] = m_rollingFriction;
+    j["linearDamping"] = m_linearDamping;
+    j["angularDamping"] = m_angularDamping;
+    j["hasRigidBody"] = (m_rigidBody != nullptr);
+
+    // Аудио
+    if (!m_AudioClipPath.empty()) {
+        j["audioClipPath"] = m_AudioClipPath;
+        j["audioVolume"] = m_AudioVolume;
+        j["audioLoop"] = m_AudioLoop;
+        j["audioSpatial"] = m_AudioSpatial;
+        j["audioMinDistance"] = m_AudioMinDistance;
+        j["audioMaxDistance"] = m_AudioMaxDistance;
+        j["audioSourceEnabled"] = m_AudioSourceEnabled;
+        j["showAudioGizmo"] = m_ShowAudioGizmo;
+    }
+
+    // Туман
+    if (m_IsFog) {
+        j["isFog"] = true;
+        j["fogEnabled"] = m_FogEnabled;
+        j["fogType"] = m_FogType;
+        j["fogColor"] = { m_FogColor.x, m_FogColor.y, m_FogColor.z };
+        j["fogDensity"] = m_FogDensity;
+        j["fogLinearStart"] = m_FogLinearStart;
+        j["fogLinearEnd"] = m_FogLinearEnd;
+    }
+
+    return j;
+}
+
+bool GameObject::FromJson(const nlohmann::json& j) {
+    try {
+        if (j.contains("name")) m_Name = j["name"];
+        if (j.contains("position")) {
+            auto pos = j["position"];
+            m_Position = glm::vec3(pos[0], pos[1], pos[2]);
+        }
+        if (j.contains("rotation")) {
+            auto rot = j["rotation"];
+            m_Rotation = glm::vec3(rot[0], rot[1], rot[2]);
+        }
+        if (j.contains("scale")) {
+            auto s = j["scale"];
+            m_Scale = glm::vec3(s[0], s[1], s[2]);
+        }
+        if (j.contains("visible")) m_Visible = j["visible"];
+        if (j.contains("color")) {
+            auto col = j["color"];
+            m_Color = glm::vec3(col[0], col[1], col[2]);
+        }
+        if (j.contains("castShadows")) m_CastShadows = j["castShadows"];
+        if (j.contains("receiveShadows")) m_ReceiveShadows = j["receiveShadows"];
+
+        // Свет
+        if (j.contains("lightType")) {
+            m_LightType = j["lightType"];
+            if (m_LightType != LT_NONE) {
+                if (j.contains("lightColor")) {
+                    auto col = j["lightColor"];
+                    m_LightColor = glm::vec3(col[0], col[1], col[2]);
+                }
+                if (j.contains("lightIntensity")) m_LightIntensity = j["lightIntensity"];
+                if (j.contains("lightRange")) m_LightRange = j["lightRange"];
+                if (j.contains("lightAngle")) m_LightAngle = j["lightAngle"];
+                if (j.contains("lightDirection")) {
+                    auto dir = j["lightDirection"];
+                    m_LightDirection = glm::vec3(dir[0], dir[1], dir[2]);
+                }
+                if (j.contains("shaftEnabled")) m_ShaftEnabled = j["shaftEnabled"];
+                if (j.contains("shaftIntensity")) m_ShaftIntensity = j["shaftIntensity"];
+                if (j.contains("shaftSoftness")) m_ShaftSoftness = j["shaftSoftness"];
+                if (j.contains("shaftDensity")) m_ShaftDensity = j["shaftDensity"];
+            }
+        }
+
+        // Камера
+        if (j.contains("isCamera") && j["isCamera"] == true) {
+            m_IsCamera = true;
+            if (j.contains("cameraFOV")) m_CameraFOV = j["cameraFOV"];
+            if (j.contains("cameraNear")) m_CameraNear = j["cameraNear"];
+            if (j.contains("cameraFar")) m_CameraFar = j["cameraFar"];
+            if (j.contains("frustumCulling")) m_FrustumCulling = j["frustumCulling"];
+            if (j.contains("showFrustumGizmo")) m_ShowFrustumGizmo = j["showFrustumGizmo"];
+        }
+
+        // Меш
+        if (j.contains("meshSourceType")) {
+            std::string sourceType = j["meshSourceType"];
+            m_MeshSourceType = sourceType;
+            if (sourceType == "primitive") {
+                std::string primitive = j["meshPrimitive"];
+                m_MeshPrimitiveType = primitive;
+                // Создаём примитив
+                if (primitive == "cube") m_Mesh = Primitives::CreateCube();
+                else if (primitive == "sphere") m_Mesh = Primitives::CreateSphere();
+                else if (primitive == "cylinder") m_Mesh = Primitives::CreateCylinder();
+                else if (primitive == "cone") m_Mesh = Primitives::CreateCone();
+                else if (primitive == "pyramid") m_Mesh = Primitives::CreatePyramid();
+                else if (primitive == "plane") m_Mesh = Primitives::CreatePlane();
+                else m_Mesh = Primitives::CreateCube(); // fallback
+            } else if (sourceType == "model") {
+                std::string path = j["meshPath"];
+                m_MeshPath = path;
+                auto model = std::make_shared<Model>(path);
+                if (model->IsLoaded() && !model->GetMeshes().empty()) {
+                    m_Mesh = model->GetMeshes()[0];
+                    // Если несколько мешей, можно создать дочерние объекты, но для простоты берём первый
+                }
+            }
+        }
+
+        // Материал
+        if (j.contains("material")) {
+            auto matJson = j["material"];
+            auto material = std::make_shared<Material>();
+            if (material->FromJson(matJson)) {
+                m_Material = material;
+            }
+        }
+
+        // Физика
+        if (j.contains("colliderType")) {
+            m_colliderType = (ColliderType)j["colliderType"].get<int>();
+        }
+        if (j.contains("mass")) m_mass = j["mass"];
+        if (j.contains("friction")) m_friction = j["friction"];
+        if (j.contains("restitution")) m_restitution = j["restitution"];
+        if (j.contains("rollingFriction")) m_rollingFriction = j["rollingFriction"];
+        if (j.contains("linearDamping")) m_linearDamping = j["linearDamping"];
+        if (j.contains("angularDamping")) m_angularDamping = j["angularDamping"];
+        bool hasRigidBody = j.value("hasRigidBody", false);
+        if (hasRigidBody && m_colliderType != COLLIDER_NONE) {
+            // Создаём физическое тело
+            UpdatePhysicsBody();
+        }
+
+        // Аудио
+        if (j.contains("audioClipPath")) {
+            m_AudioClipPath = j["audioClipPath"];
+            m_AudioVolume = j.value("audioVolume", 1.0f);
+            m_AudioLoop = j.value("audioLoop", false);
+            m_AudioSpatial = j.value("audioSpatial", true);
+            m_AudioMinDistance = j.value("audioMinDistance", 1.0f);
+            m_AudioMaxDistance = j.value("audioMaxDistance", 20.0f);
+            m_AudioSourceEnabled = j.value("audioSourceEnabled", false);
+            m_ShowAudioGizmo = j.value("showAudioGizmo", true);
+            if (m_AudioSourceEnabled) {
+                EnableAudioSource();
+                SetAudioClip(m_AudioClipPath);
+            }
+        }
+
+        // Туман
+        if (j.contains("isFog") && j["isFog"] == true) {
+            m_IsFog = true;
+            m_FogEnabled = j.value("fogEnabled", false);
+            m_FogType = j.value("fogType", 1);
+            if (j.contains("fogColor")) {
+                auto col = j["fogColor"];
+                m_FogColor = glm::vec3(col[0], col[1], col[2]);
+            }
+            m_FogDensity = j.value("fogDensity", 0.04f);
+            m_FogLinearStart = j.value("fogLinearStart", 10.0f);
+            m_FogLinearEnd = j.value("fogLinearEnd", 50.0f);
+        }
+
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Error deserializing GameObject: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+// ========== Установка меша с сохранением источника ==========
+void GameObject::SetMeshFromPrimitive(const std::string& primitiveType) {
+    m_MeshSourceType = "primitive";
+    m_MeshPrimitiveType = primitiveType;
+    m_MeshPath.clear();
+
+    if (primitiveType == "cube") m_Mesh = Primitives::CreateCube();
+    else if (primitiveType == "sphere") m_Mesh = Primitives::CreateSphere();
+    else if (primitiveType == "cylinder") m_Mesh = Primitives::CreateCylinder();
+    else if (primitiveType == "cone") m_Mesh = Primitives::CreateCone();
+    else if (primitiveType == "pyramid") m_Mesh = Primitives::CreatePyramid();
+    else if (primitiveType == "plane") m_Mesh = Primitives::CreatePlane();
+    else m_Mesh = Primitives::CreateCube();
+}
+
+void GameObject::SetMeshFromModel(const std::string& path) {
+    m_MeshSourceType = "model";
+    m_MeshPath = path;
+    m_MeshPrimitiveType.clear();
+
+    auto model = std::make_shared<Model>(path);
+    if (model->IsLoaded() && !model->GetMeshes().empty()) {
+        m_Mesh = model->GetMeshes()[0];
+        // Если нужно несколько мешей, создавайте дочерние объекты отдельно
+    } else {
+        std::cerr << "Failed to load model: " << path << std::endl;
+        m_Mesh.reset();
+    }
 }
