@@ -102,9 +102,9 @@ bool Material::LoadAOTexture(const std::string& path) {
     return false;
 }
 
-// Сериализация в JSON
-json Material::ToJson() const {
-    json j;
+// В ToJson()
+nlohmann::json Material::ToJson() const {
+    nlohmann::json j;
     j["albedo"] = { albedo.x, albedo.y, albedo.z };
     j["metallic"] = metallic;
     j["roughness"] = roughness;
@@ -115,6 +115,13 @@ json Material::ToJson() const {
     j["emission_color"] = { emissionColor.x, emissionColor.y, emissionColor.z };
     j["emission_intensity"] = emissionIntensity;
     j["enable_reflections"] = enableReflections;
+    j["transparent"] = transparent;
+    j["alpha"] = alpha;
+    j["alphaTest"] = alphaTest;
+    j["alphaCutoff"] = alphaCutoff;
+    j["alphaTestShadows"] = alphaTestShadows;
+    j["aoStrength"] = aoStrength;
+    j["roughnessStrength"] = roughnessStrength;
 
     if (!m_DiffusePath.empty()) j["diffuse_path"] = m_DiffusePath;
     if (!m_NormalPath.empty()) j["normal_path"] = m_NormalPath;
@@ -125,7 +132,8 @@ json Material::ToJson() const {
     return j;
 }
 
-bool Material::FromJson(const json& j) {
+// В FromJson()
+bool Material::FromJson(const nlohmann::json& j) {
     try {
         if (j.contains("albedo")) albedo = j["albedo"].get<glm::vec3>();
         if (j.contains("metallic")) metallic = j["metallic"];
@@ -137,12 +145,19 @@ bool Material::FromJson(const json& j) {
         if (j.contains("emission_color")) emissionColor = j["emission_color"].get<glm::vec3>();
         if (j.contains("emission_intensity")) emissionIntensity = j["emission_intensity"];
         if (j.contains("enable_reflections")) enableReflections = j["enable_reflections"];
+        if (j.contains("transparent")) transparent = j["transparent"];
+        if (j.contains("alpha")) alpha = j["alpha"];
+        if (j.contains("alphaTest")) alphaTest = j["alphaTest"];
+        if (j.contains("alphaCutoff")) alphaCutoff = j["alphaCutoff"];
+        if (j.contains("alphaTestShadows")) alphaTestShadows = j["alphaTestShadows"];
 
         if (j.contains("diffuse_path")) LoadDiffuseTexture(j["diffuse_path"]);
         if (j.contains("normal_path")) LoadNormalTexture(j["normal_path"]);
         if (j.contains("roughness_path")) LoadRoughnessTexture(j["roughness_path"]);
         if (j.contains("metallic_path")) LoadMetallicTexture(j["metallic_path"]);
         if (j.contains("ao_path")) LoadAOTexture(j["ao_path"]);
+        if (j.contains("aoStrength")) aoStrength = j["aoStrength"];
+        if (j.contains("roughnessStrength")) roughnessStrength = j["roughnessStrength"];
 
         return true;
     } catch (const std::exception& e) {
@@ -199,30 +214,94 @@ void Material::UnbindTextures() const {
 }
 
 GLuint Material::LoadTexture(const std::string& path) {
-    GLuint textureID;
-    glGenTextures(1, &textureID);
-    if (textureID == 0) {
-        std::cerr << "[Material] Failed to generate texture ID" << std::endl;
+    if (path.empty()) {
+        std::cerr << "[Material] Empty texture path" << std::endl;
+        return 0;
+    }
+
+    if (!std::filesystem::exists(path)) {
+        std::cerr << "[Material] Texture file not found: " << path << std::endl;
         return 0;
     }
 
     int width, height, nrChannels;
     stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
-    if (data) {
-        GLenum format = (nrChannels == 3) ? GL_RGB : GL_RGBA;
-        glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        stbi_image_free(data);
-        return textureID;
-    } else {
+
+    if (!data) {
         std::cerr << "[Material] Failed to load texture: " << path << " - " << stbi_failure_reason() << std::endl;
-        glDeleteTextures(1, &textureID);
         return 0;
+    }
+
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    // Выбираем формат в зависимости от количества каналов
+    GLenum format = GL_RGB;
+    GLenum internalFormat = GL_RGB8;
+    switch (nrChannels) {
+        case 1: format = GL_RED; internalFormat = GL_R8; break;
+        case 2: format = GL_RG; internalFormat = GL_RG8; break;
+        case 3: format = GL_RGB; internalFormat = GL_RGB8; break;
+        case 4: format = GL_RGBA; internalFormat = GL_RGBA8; break;
+        default:
+            std::cerr << "[Material] Unknown channel count: " << nrChannels << " for " << path << ", using RGB" << std::endl;
+            format = GL_RGB;
+            internalFormat = GL_RGB8;
+            break;
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    stbi_image_free(data);
+
+    std::cout << "[Material] Texture loaded: " << path << " (" << width << "x" << height << ", " << nrChannels << " channels)" << std::endl;
+    return textureID;
+}
+
+void Material::ClearDiffuse() {
+    if (m_DiffuseTexture) {
+        glDeleteTextures(1, &m_DiffuseTexture);
+        m_DiffuseTexture = 0;
+        m_DiffusePath.clear();
+    }
+}
+
+void Material::ClearNormal() {
+    if (m_NormalTexture) {
+        glDeleteTextures(1, &m_NormalTexture);
+        m_NormalTexture = 0;
+        m_NormalPath.clear();
+    }
+}
+
+void Material::ClearRoughness() {
+    if (m_RoughnessTexture) {
+        glDeleteTextures(1, &m_RoughnessTexture);
+        m_RoughnessTexture = 0;
+        m_RoughnessPath.clear();
+    }
+}
+
+void Material::ClearMetallic() {
+    if (m_MetallicTexture) {
+        glDeleteTextures(1, &m_MetallicTexture);
+        m_MetallicTexture = 0;
+        m_MetallicPath.clear();
+    }
+}
+
+void Material::ClearAO() {
+    if (m_AOTexture) {
+        glDeleteTextures(1, &m_AOTexture);
+        m_AOTexture = 0;
+        m_AOPath.clear();
     }
 }
