@@ -1,3 +1,4 @@
+#define NOMINMAX
 #include <stb_image.h>
 #include <iostream>
 #include <vector>
@@ -16,83 +17,8 @@
 #include "Audio/AudioEngine.h"
 #include <windows.h>
 #include <shellapi.h>
-#include <intrin.h>
-#include <psapi.h>
 
 #pragma comment(linker, "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
-
-void PrintSystemInfo() {
-    std::cout << "\n=== System Information ===" << std::endl;
-    std::cout << "OS: Windows ";
-#ifdef _WIN64
-    std::cout << "x64";
-#else
-    std::cout << "x86";
-#endif
-    typedef LONG (WINAPI* RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
-    HMODULE hNtdll = GetModuleHandleW(L"ntdll.dll");
-    if (hNtdll) {
-        RtlGetVersionPtr RtlGetVersion = (RtlGetVersionPtr)GetProcAddress(hNtdll, "RtlGetVersion");
-        if (RtlGetVersion) {
-            RTL_OSVERSIONINFOW osvi = {0};
-            osvi.dwOSVersionInfoSize = sizeof(osvi);
-            if (RtlGetVersion(&osvi) == 0) {
-                std::cout << " Version " << osvi.dwMajorVersion << "." << osvi.dwMinorVersion;
-                if (osvi.dwBuildNumber) std::cout << " (Build " << osvi.dwBuildNumber << ")";
-            }
-        }
-    }
-    std::cout << std::endl;
-    SYSTEM_INFO sysInfo;
-    GetSystemInfo(&sysInfo);
-    DWORD numCores = sysInfo.dwNumberOfProcessors;
-    std::cout << "CPU Cores: " << numCores << std::endl;
-    char cpuBrand[49] = {0};
-    int cpuInfo[4] = {0};
-    __cpuid(cpuInfo, 0x80000002);
-    memcpy(cpuBrand, cpuInfo, sizeof(cpuInfo));
-    __cpuid(cpuInfo, 0x80000003);
-    memcpy(cpuBrand + 16, cpuInfo, sizeof(cpuInfo));
-    __cpuid(cpuInfo, 0x80000004);
-    memcpy(cpuBrand + 32, cpuInfo, sizeof(cpuInfo));
-    std::string cpuName(cpuBrand);
-    cpuName.erase(cpuName.find_last_not_of(" \t\n\r\f\v") + 1);
-    if (!cpuName.empty()) {
-        std::cout << "CPU Model: " << cpuName << std::endl;
-    }
-    MEMORYSTATUSEX memStatus;
-    memStatus.dwLength = sizeof(memStatus);
-    if (GlobalMemoryStatusEx(&memStatus)) {
-        SIZE_T totalRAM_MB = memStatus.ullTotalPhys / (1024 * 1024);
-        SIZE_T freeRAM_MB = memStatus.ullAvailPhys / (1024 * 1024);
-        std::cout << "Total RAM: " << totalRAM_MB << " MB" << std::endl;
-        std::cout << "Free RAM:  " << freeRAM_MB << " MB" << std::endl;
-    }
-    std::cout << "===========================\n" << std::endl;
-}
-
-void ToggleFullscreen(GLFWwindow* window) {
-    static bool isFullscreen = false;
-    static int windowedX, windowedY, windowedWidth, windowedHeight;
-    
-    if (!isFullscreen) {
-        // Сохраняем текущие оконные параметры
-        glfwGetWindowPos(window, &windowedX, &windowedY);
-        glfwGetWindowSize(window, &windowedWidth, &windowedHeight);
-        
-        // Получаем первичный монитор и его видеорежим
-        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-        
-        // Переключаем в полноэкранный режим (без рамок)
-        glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-        isFullscreen = true;
-    } else {
-        // Возвращаемся в оконный режим с сохранёнными параметрами
-        glfwSetWindowMonitor(window, nullptr, windowedX, windowedY, windowedWidth, windowedHeight, 0);
-        isFullscreen = false;
-    }
-}
 
 bool IsRunningAsAdmin() {
     BOOL isAdmin = FALSE;
@@ -128,8 +54,8 @@ Skybox skybox;
 // Карта теней
 unsigned int depthMapFBO;
 unsigned int depthMap;
-unsigned int SHADOW_WIDTH = 2048;
-unsigned int SHADOW_HEIGHT = 2048;
+unsigned int SHADOW_WIDTH = 4096;
+unsigned int SHADOW_HEIGHT = 4096;
 
 // Для пост-эффектов
 unsigned int framebuffer;
@@ -144,9 +70,10 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 bool initShaders();
 bool initShadowMap();
-glm::mat4 calculateLightSpaceMatrix(const glm::vec3& lightPos, const glm::vec3& center = glm::vec3(0.0f));
 void initPostProcessing(int width, int height);
 void renderFullScreenQuad();
+glm::mat4 calculateLightSpaceMatrix(const glm::vec3& lightDir, const glm::mat4& viewMatrix,
+                                    const glm::vec3& lightPos, float nearRadius, float farClip);
 
 // Реализация initPostProcessing и renderFullScreenQuad (как у вас, но без ошибок)
 void initPostProcessing(int width, int height) {
@@ -257,6 +184,7 @@ int main() {
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, key_callback);
 
+    // Инициализация аудиодвижка
 if (!AudioEngine::Get().Initialize()) {
     std::cerr << "Warning: AudioEngine failed to initialize" << std::endl;
 } else {
@@ -275,7 +203,6 @@ if (!AudioEngine::Get().Initialize()) {
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     std::cout << "OpenGL: " << glGetString(GL_VERSION) << std::endl;
     std::cout << "GPU: " << glGetString(GL_RENDERER) << std::endl;
-    PrintSystemInfo();
 
     g_SceneManager.InitializePhysics();
     g_SceneManager.Initialize();
@@ -365,7 +292,11 @@ if (useCulling) {
                 break;
             }
         }
-        glm::mat4 lightSpaceMatrix = calculateLightSpaceMatrix(directionalLightPos);
+
+        glm::mat4 lightSpaceMatrix = calculateLightSpaceMatrix(directionalLightDir, view,
+                                                       directionalLightPos,
+                                                       settings.shadowNearQualityRadius,
+                                                       settings.shadowFarClip);
 
         // --- Рендер карты теней ---
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
@@ -615,14 +546,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         mouseCaptured = false;
         firstMouse = true;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    } 
+    }
     if (key == GLFW_KEY_DELETE && action == GLFW_PRESS) {
         auto selected = g_SceneManager.GetSelectedObject();
         if (selected) g_SceneManager.DeleteGameObject(selected.get());
     }
-    if (key == GLFW_KEY_F11 && action == GLFW_PRESS) {
-    ToggleFullscreen(window);
-}
 }
 
 // ========== ИНИЦИАЛИЗАЦИЯ ШЕЙДЕРОВ ==========
@@ -666,9 +594,23 @@ bool initShadowMap() {
     return true;
 }
 
-glm::mat4 calculateLightSpaceMatrix(const glm::vec3& lightPos, const glm::vec3& center) {
-    float near_plane = 1.0f, far_plane = 10.0f;
-    glm::mat4 lightProjection = glm::ortho(-5.0f, 5.0f, -5.0f, 5.0f, near_plane, far_plane);
-    glm::mat4 lightView = glm::lookAt(lightPos, center, glm::vec3(0.0f, 1.0f, 0.0f));
+glm::mat4 calculateLightSpaceMatrix(const glm::vec3& lightDir, const glm::mat4& viewMatrix,
+                                    const glm::vec3& /*lightPos*/, float nearRadius, float farClip) {
+    glm::mat4 invView = glm::inverse(viewMatrix);
+    glm::vec3 cameraPos = glm::vec3(invView[3]);
+
+    // Расстояние от камеры до центра сцены (0,0,0) – можно заменить на любую другую точку
+    float distToCenter = glm::length(cameraPos);
+    
+    // Выбираем радиус: если камера ближе nearRadius к центру – качественные тени, иначе – дальние (плохие)
+    float currentRadius = (distToCenter < nearRadius) ? nearRadius : farClip;
+    
+    glm::vec3 center = cameraPos + lightDir * (currentRadius * 0.3f);
+    glm::vec3 lightUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    if (fabs(glm::dot(lightDir, lightUp)) > 0.999f) lightUp = glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::mat4 lightView = glm::lookAt(center - lightDir * currentRadius, center, lightUp);
+    
+    float half = currentRadius * 0.5f;
+    glm::mat4 lightProjection = glm::ortho(-half, half, -half, half, 1.0f, farClip);
     return lightProjection * lightView;
 }
