@@ -45,11 +45,22 @@ void AudioEngine::Update(const glm::vec3& listenerPos,
 
 uint64_t AudioEngine::LoadSound(const std::string& filePath) {
     if (!m_Initialized) return 0;
+
+    // Проверяем, не загружен ли уже этот файл
+    auto it = m_SoundCache.find(filePath);
+    if (it != m_SoundCache.end()) {
+        // Найден существующий звук – возвращаем его ID
+        return it->second;
+    }
+
+    // Ищем свободный слот для нового звука
     for (int i = 0; i < 256; ++i) {
         if (!m_Slots[i].active) {
             if (ma_sound_init_from_file(&m_Engine, filePath.c_str(), 0, nullptr, nullptr, &m_Slots[i].sound) == MA_SUCCESS) {
                 m_Slots[i].active = true;
                 m_Slots[i].id = m_NextId++;
+                // Сохраняем в кэш
+                m_SoundCache[filePath] = m_Slots[i].id;
                 return m_Slots[i].id;
             } else {
                 std::cerr << "[Audio] Failed to load sound: " << filePath << std::endl;
@@ -66,6 +77,14 @@ void AudioEngine::UnloadSound(uint64_t id) {
         if (m_Slots[i].active && m_Slots[i].id == id) {
             ma_sound_uninit(&m_Slots[i].sound);
             m_Slots[i].active = false;
+            // Удаляем из кэша (перебор всех – неэффективно, но допустимо)
+            for (auto it = m_SoundCache.begin(); it != m_SoundCache.end(); ) {
+                if (it->second == id) {
+                    it = m_SoundCache.erase(it);
+                } else {
+                    ++it;
+                }
+            }
             break;
         }
     }
@@ -76,8 +95,7 @@ void AudioEngine::Play2D(uint64_t id, float volume, bool loop) {
         if (m_Slots[i].active && m_Slots[i].id == id) {
             ma_sound_set_looping(&m_Slots[i].sound, loop);
             ma_sound_set_volume(&m_Slots[i].sound, volume);
-            // --- УБИРАЕМ ПРОБЛЕМНУЮ СТРОКУ ---
-            // ma_sound_set_positioning(...); <-- ЭТО УДАЛЯЕМ
+            ma_sound_set_spatialization_enabled(&m_Slots[i].sound, 0);   // 0 = отключить пространственность
             ma_sound_start(&m_Slots[i].sound);
             break;
         }
@@ -90,28 +108,25 @@ void AudioEngine::Play3D(uint64_t id, const glm::vec3& position, float volume, b
         if (m_Slots[i].active && m_Slots[i].id == id) {
             ma_sound_set_looping(&m_Slots[i].sound, loop);
             ma_sound_set_volume(&m_Slots[i].sound, volume);
-            
-            // --- ЭТО ГЛАВНОЕ: НАСТРАИВАЕМ 3D ПАРАМЕТРЫ ---
-            // 1. Устанавливаем позицию источника звука
+            // ВКЛЮЧАЕМ 3D (было отключено в Play2D)
+            ma_sound_set_spatialization_enabled(&m_Slots[i].sound, 1);   // <-- ДОБАВИТЬ ЭТУ СТРОКУ
+            ma_sound_set_positioning(&m_Slots[i].sound, static_cast<ma_positioning>(2));
             ma_sound_set_position(&m_Slots[i].sound, position.x, position.y, position.z);
-            // 2. Устанавливаем минимальную и максимальную дистанцию
             ma_sound_set_min_distance(&m_Slots[i].sound, minDistance);
             ma_sound_set_max_distance(&m_Slots[i].sound, maxDistance);
-            // 3. Выбираем модель затухания (обратно-квадратичное, как в реальном мире)
             ma_sound_set_attenuation_model(&m_Slots[i].sound, ma_attenuation_model_inverse);
-            
-            // --- УБИРАЕМ ПРОБЛЕМНУЮ СТРОКУ ---
-            // ma_sound_set_positioning(...); <-- ЭТО УДАЛЯЕМ
-            
             ma_sound_start(&m_Slots[i].sound);
             break;
         }
     }
 }
+
 void AudioEngine::Stop(uint64_t id) {
     for (int i = 0; i < 256; ++i) {
         if (m_Slots[i].active && m_Slots[i].id == id) {
-            ma_sound_stop(&m_Slots[i].sound);
+            if (ma_sound_is_playing(&m_Slots[i].sound)) {
+                ma_sound_stop(&m_Slots[i].sound);
+            }
             break;
         }
     }
