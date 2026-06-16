@@ -3,6 +3,7 @@
 #include <stb_image.h>
 #include <glm/gtc/type_ptr.hpp>
 
+
 Mesh::Mesh(const std::vector<Vertex>& vertices,
            const std::vector<unsigned int>& indices,
            const std::string& diffusePath,
