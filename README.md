@@ -1,10 +1,11 @@
-# 🎮 BinaxEngine - Game Engine (v0.7.0)
+```markdown
+# 🎮 BinaxEngine - Game Engine (v0.8.0)
 
-[![CMake](https://img.shields.io/badge/CMake-3.15+-blue?style=flat-square&logo=cmake)](https://cmake.org/)
+[![CMake](https://img.shields.io/badge/CMake-blue?style=flat-square&logo=cmake)](https://cmake.org/)
 [![C++](https://img.shields.io/badge/C++-17-orange?style=flat-square&logo=cplusplus)](https://isocpp.org/)
-[![OpenGL](https://img.shields.io/badge/OpenGL-4.6-red?style=flat-square&logo=opengl)](https://www.opengl.org/)
-[![Bullet Physics](https://img.shields.io/badge/Bullet-3.25-brightgreen?style=flat-square)](https://pybullet.org/)
-[![Assimp](https://img.shields.io/badge/Assimp-5.2-blue?style=flat-square)](https://assimp.org/)
+[![OpenGL](https://img.shields.io/badge/OpenGL-red?style=flat-square&logo=opengl)](https://www.opengl.org/)
+[![Bullet Physics](https://img.shields.io/badge/Bullet-brightgreen?style=flat-square)](https://pybullet.org/)
+[![Assimp](https://img.shields.io/badge/Assimp-blue?style=flat-square)](https://assimp.org/)
 [![Windows](https://img.shields.io/badge/Platform-Windows-blue?style=flat-square&logo=windows)](https://www.microsoft.com/windows)
 [![Status](https://img.shields.io/badge/status-beta-yellow?style=flat-square)]()
 
@@ -21,39 +22,38 @@
 - **ImGui-based interface** with docking, viewports, and custom themes
 - **ImGuizmo integration** – translate, rotate, scale objects with snap support
 - **Hierarchy panel** – parent-child object relationships with drag‑and‑drop
-- **Inspector panel** – edit all components (transform, appearance, light, material, mesh, physics, **audio**, camera)
+- **Inspector panel** – edit all components (transform, appearance, light, material, mesh, physics, audio, camera)
 - **Scene view** – camera navigation (WASD + mouse) with mouse capture
 - **Content browser** – asset management (models, textures, shaders, audio files)
-- **Menu bar** – file operations, edit (duplicate, delete), view (wireframe, grid, gizmo, theme editor, VSync), physics (active physics, reset), skybox & shadows settings
-- **Hotkeys** – Ctrl+S (save), Ctrl+D (duplicate), Delete (remove object), G (toggle grid), T/R/E (gizmo mode), X (gizmo local/world), ESC (release mouse)
+- **Menu bar** – file operations (Save Scene, Load Scene), edit (duplicate, delete), view (wireframe, grid, gizmo, theme editor, VSync), physics (active physics, reset), skybox & shadows settings
+- **Hotkeys** – Ctrl+S (save current scene), Ctrl+O (load scene), Ctrl+D (duplicate), Delete (remove object), G (toggle grid), T/R/E (gizmo mode), X (gizmo local/world), ESC (release mouse)
 
 ### 🎨 Graphics & Rendering
-- **OpenGL 3.3 core profile**
+- **OpenGL 3.3 core profile** with seamless cubemap support
 - **PBR materials** – metallic, roughness, ambient occlusion, emission
-- **Normal mapping** with adjustable strength
+- **Normal mapping** with adjustable strength (0–5x)
 - **Texture support** – diffuse, normal, roughness, metallic, AO (load via file dialog)
 - **UV scaling** and **World UV** projection (triplanar mapping)
 - **Dynamic lights** – directional, point, spot (up to 8 active)
-- **Shadow mapping** – directional light shadows with PCF (4/9 samples), adjustable bias and softness
-- **Skybox** – cubemap-based environment (load 6 images)
-- **Grid** – customizable white semi‑transparent grid with distance fade
-- **Outline** – highlight selected objects (wireframe, vertices, fill)
-- **Anisotropic filtering** for sharper textures at angles
-- **Visual gizmos** – camera direction (white pyramid), light range (sphere for point, cone for spot), audio range (sphere), all toggleable per object
+- **Advanced shadow mapping**:
+  - Dual‑mode shadows: High Quality (sharp, up to 30 m) and Long‑distance (blurry, up to 150 m)
+  - Camera‑centric orthographic projection – no clipping at world origin
+  - PCF filtering (4/9 samples), bias, softness, and map size – all adjustable in real time
+- **Skybox** – cubemap‑based environment, seamless filtering
+- **Grid** – customizable semi‑transparent grid with distance fade
+- **Visual gizmos** – camera frustum (pyramid), light range (sphere/cone), audio range (sphere) – each toggleable per object
 
-### 🔊 Audio (New in v0.7.0!)
-- **Miniaudio backend** – single‑header, supports WAV, MP3, FLAC, OGG
+### 🔊 Audio (miniaudio)
+- **2D / 3D spatial audio** – distance attenuation, listener follows active camera
 - **Audio Source component** – add/remove via "Add Component" menu
-- **2D / 3D spatial audio** – 3D sound with distance attenuation
 - **Real‑time parameter updates** – volume, loop, min/max distance, 3D toggle – without restarting playback
-- **Visual gizmo** – white wireframe sphere showing max distance (toggleable)
-- **Listener** – automatically attached to the active camera
-- **Performance** – efficient sound slot management (up to 256 simultaneous sounds)
+- **Visual audio gizmo** – white wireframe sphere showing max distance (toggleable)
+- **Supports WAV, MP3, FLAC, OGG** via miniaudio
 
 ### 🧠 Physics (Bullet 3.25)
 - **Rigid body dynamics** – mass, gravity, collisions
 - **Collider shapes** – Box, Sphere, Capsule
-- **Material properties** – friction (0..1), restitution (0..1), rolling friction
+- **Material properties** – friction (0–1), restitution (0–1), rolling friction
 - **Damping** – linear and angular drag
 - **Static & dynamic bodies** – mass 0 = static (e.g., ground)
 - **Physics controls** – "Active Physics" toggle, "Return" reset to initial positions
@@ -61,7 +61,8 @@
 
 ### 📦 Asset Import (Assimp)
 - **Model formats** – OBJ, FBX, DAE, BLEND, 3DS, STL
-- **Hierarchical import** – preserves object hierarchy
+- **Full Unicode support** – Cyrillic characters in filenames and paths
+- **Hierarchical import** – preserves object hierarchy, position, rotation, and scale from nodes
 - **Material extraction** – loads diffuse, normal, roughness, metallic, AO textures
 - **PBR parameter reading** – metallic/roughness factors from file
 - **Mesh naming** – retains original mesh names
@@ -69,42 +70,61 @@
 ### 🎛️ Component System
 - **Transform** – position, rotation, scale (with non‑uniform scale warning)
 - **Appearance** – color, visibility
-- **Light** – type, color, intensity, range, angle, direction
-- **Material** – textures, metallic/roughness override, emission, UV settings
-- **Mesh** – switch between primitives (cube, sphere, cylinder, cone, pyramid, plane)
-- **Rendering** – cast/receive shadows
+- **Light** – type, color, intensity, range, angle, direction, volumetric cone (shafts)
+- **Material** – textures, metallic/roughness override, emission, UV settings, transparency mode
+- **Mesh** – switch between primitives (cube, sphere, cylinder, cone, pyramid, plane) or load external model
+- **Rendering** – cast/receive shadows, enable/disable per object
 - **Physics** – add/remove RigidBody, choose collider type, adjust mass, friction, restitution, rolling friction, linear/angular damping
 - **Audio Source** – load audio file, volume, loop, 3D toggle, min/max distance, play/stop, show gizmo
 - **Camera** – FOV, near/far plane, switch active camera, show frustum gizmo
 
-### 🎥 Camera
-- **First‑person controls** – WASD + mouse look
-- **Multiple cameras** – switch via inspector
-- **Adjustable FOV**, near/far planes
-- **Visual frustum gizmo** (white pyramid) for non‑active cameras
-
-### ⚡ Performance & System
-- **Optimised gizmo rendering** – precomputed geometry, batched draw calls, `glBufferSubData` for dynamic updates
-- **Administrator rights request** – reduces idle CPU usage from ~8‑10% to ~3% (tested)
-- **Low memory footprint** – ~90 MB RAM
+### 💾 Scene Serialization (.bxlvl)
+- **Complete scene save/load** – objects, hierarchy, transforms, meshes (primitive or model), PBR materials, lights, cameras, physics bodies, audio sources, fog
+- **Embedded editor settings** – VSync, snap increments, shadow configs, background color, ambient strength – all stored inside the scene file (no separate config)
+- **Smart workflows** – Ctrl+S overwrites the current scene without dialogs; "Save As" and "Load" via native file picker
 
 ---
 
-## 🆕 What's New in v0.7.0
-- **Full audio system** (miniaudio) – 2D/3D sound, MP3/WAV/FLAC/OGG support
-- **Audio Source component** – add/remove via component menu, real‑time parameter updates without restart
-- **Audio distance gizmo** – white wireframe sphere (toggleable)
-- **Optimised gizmo rendering** – precomputed circles, batched buffers, no per‑frame trig
-- **Administrator rights prompt** – reduces CPU idle load (3% vs 8‑10%)
-- **Improved component UI** – "Add Audio Source" inside the Add Component popup alongside Physics
-- **Audio listener** – follows active camera for 3D panning
-- **Real‑time volume/min/max distance updates** for playing sounds
+## 🆕 What's New in v0.8.0
 
-## 🐛 Fixes & Improvements (v0.7.0)
-- Fixed `min`/`max` macro conflicts on Windows (added `NOMINMAX`)
-- Fixed `miniaudio` linking – added `winmm.lib` and `ole32.lib`
-- Corrected missing audio component in inspector
-- Gizmos now respect show/hide toggles per object
+### Rendering and Dynamic Shadows
+- **Adaptive Dual‑Zone Shadows** – two independent shadow modes: High Quality Mode (sharp, up to 30 m) and Long‑Distance Mode (blurry, up to 150 m), switchable via checkbox.
+- **Camera‑Centric Shadow Maps** – shadow view‑frustum now follows the active camera, eliminating clipping and artifacts at the world origin.
+- **Exposed Shadow Parameters** – distance, map resolution (1024–8192), PCF samples, bias, and softness are fully adjustable in the Editor UI and saved per scene.
+
+### Advanced Material Transparency
+- **Alpha Test Support** – ideal for foliage, grass, and cutout textures; pixels below a cutoff are discarded. Shadows can also use alpha testing (`Alpha Test Shadows`), so leaves cast accurate geometric shadows.
+- **Alpha Blend Support** – alpha‑blending for glass, water, and translucent surfaces.
+- **Material Properties** – runtime controls for `Alpha`, `Alpha Cutoff`, and `Transparent` flags in the Material Inspector.
+
+### Robust Scene Serialization
+- **Unified `.bxlvl` (JSON) Format** – scenes now store the complete world state, including hierarchy, meshes (both primitives and models), PBR materials, lights, cameras, Bullet Physics components, audio sources, and fog settings.
+- **Embedded Editor Settings** – all editor preferences (VSync, snapping, shadow configs, viewport background, etc.) are now stored directly inside each `.bxlvl` scene file instead of an external global file.
+- **Smarter Workflows** – native file dialogs for Load/Save; pressing **Ctrl+S** instantly overwrites the current scene without dialog popups.
+
+### Assimp Model Loading & Material Fixes
+- **Unicode Support** – fixed file path resolution to fully support Cyrillic characters in model names and directory structures.
+- **Hierarchical Node Transforms** – correctly extracts and propagates local position, rotation, and scale from complex Assimp node hierarchies.
+- **VRAM and Format Optimization** – resolved a critical crash caused by pushing 1‑ or 2‑channel textures (Roughness, Metallic, AO) into `GL_RGBA`. Now properly uses `GL_RED` / `GL_RG` and internal formats `GL_R8` / `GL_RG8`.
+- **Material Multipliers** – added explicit uniform controls for **AO Strength**, **Roughness Strength**, and **Normal Strength** (range 0.0 – 5.0) in the PBR shader.
+- **Texture Lifecycle** – added safe `Clear()` methods for all texture slots to prevent memory leaks during runtime switching.
+
+### General Improvements
+- **gui.ini** – ImGui window layout is now saved next to the executable, not in `saves/`.
+- **Performance** – gizmo rendering uses precomputed geometry and batched draw calls.
+- **Stability** – eliminated duplicate implementations of `SaveScene` / `LoadScene`, fixed double declaration of `mat` in `GameObject::Draw`, added missing includes.
+
+---
+
+## 🐛 Fixes & Improvements (v0.8.0)
+- Fixed shadow clipping when camera moves away from origin.
+- Fixed crash when loading 1‑channel (roughness, metallic, AO) textures.
+- Fixed double-declaration of `mat` in `GameObject::Draw`.
+- Removed redundant `SaveScene` / `LoadScene` implementations.
+- Added missing `#include <filesystem>`, `#include <nlohmann/json.hpp>`, etc.
+- Fixed uniform bindings for AO and Roughness in forward shader.
+- Fixed 3D audio listener orientation update.
+- Moved `gui.ini` to executable directory.
 
 ---
 
@@ -116,7 +136,7 @@
 - CMake 3.15+
 - Git
 
-## Build Steps
+### Build Steps
 ```bash
 git clone https://github.com/VladPim/BinaxEngine.git
 cd BinaxEngine
@@ -130,49 +150,52 @@ cmake --build . --config Release
 After build, execute `BinaxEngine.exe` from `build/Release/`.
 
 ---
-🕹️ Editor Controls
-Action	Keys
-Move camera	WASD + Space/Shift
-Rotate camera	Mouse (after Capture Mouse)
-Capture/release mouse	Button in menu or ESC
-Select object	Left-click in Hierarchy or Scene View
-Delete object	Delete
-Duplicate	Ctrl+D
-Save scene	Ctrl+S
-Gizmo mode	T (translate), R (rotate), E (scale)
-Gizmo local/world	X
-Toggle grid	G
-🧪 Example: Creating a Physics Scene
-Add a Cube (via + Add Object → Cube) – it gets a Box collider and is static by default.
 
-Add a second Cube, move it up (e.g., Y=3).
+## 🕹️ Editor Controls
 
-Select the second cube, click Add Component → Physics.
+| Action                        | Keys                                         |
+|-------------------------------|----------------------------------------------|
+| Move camera                   | WASD + Space (up) / Shift (down)             |
+| Rotate camera                 | Mouse (after pressing "Capture Mouse")       |
+| Capture / release mouse       | Button in menu bar or **ESC**                |
+| Select object                 | Left‑click in Hierarchy or Scene View        |
+| Delete object                 | **Delete**                                   |
+| Duplicate object              | **Ctrl + D**                                 |
+| Save scene (overwrite)        | **Ctrl + S**                                 |
+| Load scene                    | **Ctrl + O** (or via File menu)              |
+| Gizmo mode (Translate)        | **T**                                        |
+| Gizmo mode (Rotate)           | **R**                                        |
+| Gizmo mode (Scale)            | **E**                                        |
+| Gizmo local / world toggle    | **X**                                        |
+| Toggle grid                   | **G**                                        |
 
-Enable physics via Physics → Active Physics.
+---
 
-The top cube will fall onto the bottom one and stop.
+## 🧪 Example: Creating a Physics Scene
+1. Add a **Cube** (via `+ Add Object → Cube`) – it gets a Box collider and is static by default.
+2. Add a second **Cube**, move it up (e.g., Y = 3).
+3. Select the second cube, click `Add Component → Physics`.
+4. Enable physics via `Physics → Active Physics`.
+5. The top cube will fall onto the bottom one and stop.
+6. Tweak mass, friction, restitution, and damping in the Inspector.
 
-You can tweak mass, friction, restitution, and damping in the inspector.
+---
 
-🔊 Example: Adding 3D Sound
-Create an empty object (+ Add Object → Empty) or use an existing one.
+## 🔊 Example: Adding 3D Sound
+1. Create an empty object or select an existing one.
+2. Go to `Inspector → Components → Add Component → Audio Source`.
+3. Load a sound file (WAV, MP3, etc.) via the `...` button.
+4. Enable **3D Sound**, set **Min Distance** (e.g., 1) and **Max Distance** (e.g., 20).
+5. Press **Play** – move the camera closer/farther to hear the attenuation.
+6. Enable **Show Gizmo (Range)** to visualise the max distance sphere.
 
-Select it, go to Inspector → Components → Add Component → Audio Source.
+---
 
-Load a sound file (WAV, MP3, etc.) via the ... button.
-
-Enable 3D Sound, set Min Distance (e.g., 1) and Max Distance (e.g., 20).
-
-Press Play – move the camera closer/farther to hear the attenuation.
-
-Enable Show Gizmo (Range) to visualise the max distance sphere.
-
-📂 Project Structure
+## 📂 Project Structure
 ```
 BinaxEngine/
 ├── assets/                 # shaders, textures, models
-├── libs/                   # third‑party libraries (GLFW, GLEW, Bullet, Assimp, ImGui, GLM, STB, miniaudio)
+├── libs/                   # third‑party libraries (GLFW, GLEW, Bullet, Assimp, ImGui, GLM, STB, miniaudio, nlohmann/json)
 ├── resources/              # icons, fonts, skyboxes
 ├── src/
 │   ├── Audio/              # miniaudio wrapper
@@ -184,21 +207,18 @@ BinaxEngine/
 ├── CMakeLists.txt
 └── README.md
 ```
----
-
-🔮 Planned for Future Releases
-Particle system
-
-Scene serialization (save/load to file)
-
-Scripting (Lua)
-
-Post-processing (bloom, HDR)
-
-Terrain system
-
-Animation (skeletal)
-
-More audio features (attenuation curves, Doppler effect)
 
 ---
+
+## 🔮 Planned for Future Releases
+- Particle system
+- Scripting (Lua)
+- Post‑processing (bloom, HDR)
+- Terrain system
+- Animation (skeletal)
+- More audio features (attenuation curves, Doppler effect)
+
+---
+
+**Enjoy building with BinaxEngine!** 🚀
+```
