@@ -112,7 +112,7 @@ set(SOURCES
     src/Scene/Frustum.cpp
     src/Editor/EditorUI.cpp
     src/Physics/PhysicsWorld.cpp
-    src/Audio/AudioEngine.cpp          # <--- ДОБАВЛЕНО
+    src/Audio/AudioEngine.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
