@@ -12,14 +12,16 @@ uniform sampler2D normalMap;
 uniform sampler2D roughnessTexture;
 uniform sampler2D metallicTexture;
 uniform sampler2D aoTexture;
-uniform samplerCube environmentMap;   // новая текстура окружения
+uniform samplerCube environmentMap;
 
 uniform bool hasDiffuseTexture;
 uniform bool hasNormalMap;
 uniform bool hasRoughnessTexture;
 uniform bool hasMetallicTexture;
 uniform bool hasAOTexture;
-uniform bool enableReflections;       // новая опция: включать отражения
+uniform bool enableReflections;
+uniform float aoStrength = 1.0;
+uniform float roughnessStrength = 1.0;
 
 uniform vec3 objectColor;
 uniform float metallic;
@@ -44,7 +46,7 @@ uniform int shadowSamples;
 uniform vec3 emissionColor;
 uniform float emissionIntensity;
 
-// --- Туман (оставляем как есть) ---
+// --- Туман ---
 uniform bool fogEnabled;
 uniform int fogType;
 uniform vec3 fogColor;
@@ -52,7 +54,12 @@ uniform float fogDensity;
 uniform float fogStart;
 uniform float fogEnd;
 
-// --- Источники света (без изменений) ---
+// === НОВЫЕ UNIFORM'Ы ДЛЯ ПРОЗРАЧНОСТИ ===
+uniform float alpha = 1.0;
+uniform bool alphaTest = false;
+uniform float alphaCutoff = 0.5;
+
+// --- Источники света ---
 struct Light {
     int type;
     vec3 position;
@@ -127,6 +134,15 @@ float ShadowCalculation(vec4 fragPosLightSpace, float NdotL) {
 }
 
 void main() {
+    // ---------- Альфа-тест (должен выполняться до всех вычислений) ----------
+    float finalAlpha = alpha;
+    if (hasDiffuseTexture && alphaTest) {
+        vec2 uv = TexCoords * uvScale;
+        float texAlpha = texture(diffuseTexture, uv).a;
+        if (texAlpha < alphaCutoff) discard;
+        finalAlpha = texAlpha;
+    }
+
     // ---------- UV и альбедо ----------
     vec2 uv = TexCoords * uvScale;
     vec3 albedo;
@@ -146,7 +162,7 @@ void main() {
             albedo = objectColor;
     }
 
-    // ---------- Нормаль (исправленная) ----------
+    // ---------- Нормаль ----------
     vec3 geomNormal = normalize(TBN[2]);
     vec3 normal = geomNormal;
     if (hasNormalMap && !useWorldUV) {
@@ -160,15 +176,23 @@ void main() {
     float metallicVal = metallic;
     if (hasMetallicTexture) metallicVal = texture(metallicTexture, uv).r;
     float roughnessVal = roughness;
-    if (hasRoughnessTexture) roughnessVal = texture(roughnessTexture, uv).r;
-    roughnessVal = clamp(roughnessVal, 0.04, 1.0);
-    float aoVal = 1.0;
-    if (hasAOTexture) aoVal = texture(aoTexture, uv).r;
+if (hasRoughnessTexture) {
+    float texRoughness = texture(roughnessTexture, uv).r;
+    roughnessVal = mix(roughness, texRoughness, roughnessStrength);
+}
+roughnessVal = clamp(roughnessVal, 0.04, 1.0);
+
+float aoVal = 1.0;
+if (hasAOTexture) {
+    float texAO = texture(aoTexture, uv).r;
+    aoVal = mix(1.0, texAO, aoStrength);
+    aoVal = clamp(aoVal, 0.0, 1.0);
+}
 
     vec3 V = normalize(viewPos - FragPos);
     vec3 F0 = mix(vec3(0.04), albedo, metallicVal);
 
-    // Ambient (с AO)
+    // Ambient
     vec3 ambient = ambientStrength * albedo * aoVal;
     vec3 result = ambient;
 
@@ -177,15 +201,15 @@ void main() {
         Light light = lights[i];
         vec3 L;
         float attenuation = 1.0;
-        if (light.type == 0) { // directional
+        if (light.type == 0) {
             L = normalize(-light.direction);
-        } else if (light.type == 1) { // point
+        } else if (light.type == 1) {
             vec3 delta = light.position - FragPos;
             float dist = length(delta);
             if (dist > light.range) continue;
             L = delta / dist;
             attenuation = 1.0 / (1.0 + dist * dist / (light.range * light.range));
-        } else if (light.type == 2) { // spot
+        } else if (light.type == 2) {
             vec3 delta = light.position - FragPos;
             float dist = length(delta);
             if (dist > light.range) continue;
@@ -214,14 +238,12 @@ void main() {
         result += (1.0 - shadow) * Lo;
     }
 
-    // ---------- Отражения окружения (Cubemap) ----------
+    // ---------- Отражения окружения ----------
     if (enableReflections) {
         vec3 R = reflect(-V, normal);
-        // Уровень mipmap в зависимости от roughness (чем выше roughness, тем более размытое отражение)
-        float maxMip = textureQueryLevels(environmentMap); // требует расширения, можно заменить константой 5.0
+        float maxMip = textureQueryLevels(environmentMap);
         float mip = roughnessVal * maxMip;
         vec3 reflection = textureLod(environmentMap, R, mip).rgb;
-        // Смешиваем отражение с результатом в зависимости от metallic и roughness
         float reflectFactor = metallicVal * (1.0 - roughnessVal);
         result = mix(result, reflection, reflectFactor);
     }
@@ -232,7 +254,7 @@ void main() {
     // ---------- Гамма-коррекция ----------
     result = pow(result, vec3(1.0/2.2));
 
-    // ---------- Туман (оставляем без изменений) ----------
+    // ---------- Туман ----------
     if (fogEnabled) {
         float dist = length(viewPos - FragPos);
         float fogFactor = 0.0;
@@ -247,5 +269,10 @@ void main() {
         result = mix(result, fogColor, fogFactor);
     }
 
-    FragColor = vec4(result, 1.0);
+    // ---------- Итоговый цвет с учётом альфа-канала ----------
+    if (!alphaTest) {
+        FragColor = vec4(result, finalAlpha);
+    } else {
+        FragColor = vec4(result, 1.0);
+    }
 }
