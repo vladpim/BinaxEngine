@@ -46,4 +46,5 @@ private:
     SoundSlot m_Slots[256];          // до 256 одновременных звуков
     uint64_t m_NextId = 1;
     bool m_Initialized = false;
+    std::unordered_map<std::string, uint64_t> m_SoundCache;
 };
