@@ -162,6 +162,15 @@ public:
     bool IsAudioSourceEnabled() const { return m_AudioSourceEnabled; }
     void EnableAudioSource();
     void DisableAudioSource();  // удаляет компонент, выгружает звук
+    nlohmann::json ToJson() const;
+    bool FromJson(const nlohmann::json& j);
+    // ---- Установка меша с сохранением источника ----
+    void SetMeshFromPrimitive(const std::string& primitiveType);
+    void SetMeshFromModel(const std::string& path);
+    // ---- Вспомогательные геттеры для сериализации ----
+    std::string GetMeshSourceType() const { return m_MeshSourceType; }
+    std::string GetMeshPrimitiveType() const { return m_MeshPrimitiveType; }
+    std::string GetMeshPath() const { return m_MeshPath; }
 
 private:
     std::string m_Name;
@@ -212,7 +221,6 @@ private:
     float m_ShaftSoftness = 1.0f;
     std::shared_ptr<Mesh> m_ShaftMesh;
     float m_ShaftDensity = 0.5f;
-
     glm::vec3 m_initialPosition;
     glm::vec3 m_initialRotation;
     glm::vec3 m_initialScale;
@@ -225,4 +233,7 @@ private:
     float m_AudioMinDistance = 1.0f;
     float m_AudioMaxDistance = 20.0f;
     bool m_ShowAudioGizmo = true;
+    std::string m_MeshSourceType;      // "primitive" или "model"
+    std::string m_MeshPrimitiveType;   // "cube", "sphere", "cylinder", "cone", "pyramid", "plane"
+    std::string m_MeshPath;            // путь к файлу модели
 };
