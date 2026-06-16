@@ -2,7 +2,7 @@
 #include <string>
 #include <GL/glew.h>
 #include <glm/glm.hpp>
-#include <nlohmann/json.hpp>   // добавьте этот include
+#include <nlohmann/json.hpp>
 
 class Material {
 public:
@@ -15,11 +15,11 @@ public:
     bool LoadMetallicTexture(const std::string& path);
     bool LoadAOTexture(const std::string& path);
 
-    void ClearDiffuse()   { if (m_DiffuseTexture)   { glDeleteTextures(1, &m_DiffuseTexture);   m_DiffuseTexture = 0; m_DiffusePath.clear(); } }
-    void ClearNormal()    { if (m_NormalTexture)    { glDeleteTextures(1, &m_NormalTexture);     m_NormalTexture = 0; m_NormalPath.clear(); } }
-    void ClearRoughness() { if (m_RoughnessTexture) { glDeleteTextures(1, &m_RoughnessTexture); m_RoughnessTexture = 0; m_RoughnessPath.clear(); } }
-    void ClearMetallic()  { if (m_MetallicTexture)  { glDeleteTextures(1, &m_MetallicTexture);   m_MetallicTexture = 0; m_MetallicPath.clear(); } }
-    void ClearAO()        { if (m_AOTexture)        { glDeleteTextures(1, &m_AOTexture);         m_AOTexture = 0; m_AOPath.clear(); } }
+    void ClearDiffuse();
+    void ClearNormal();
+    void ClearRoughness();
+    void ClearMetallic();
+    void ClearAO();
 
     void BindTextures() const;
     void UnbindTextures() const;
@@ -30,7 +30,9 @@ public:
     bool HasMetallic() const { return m_MetallicTexture != 0; }
     bool HasAO() const { return m_AOTexture != 0; }
 
-    // Параметры материала
+    GLuint GetDiffuseTextureID() const { return m_DiffuseTexture; }
+
+    // Параметры PBR
     glm::vec3 albedo = glm::vec3(1.0f);
     float metallic = 0.0f;
     float roughness = 0.5f;
@@ -42,16 +44,31 @@ public:
     float emissionIntensity = 0.0f;
     bool enableReflections = false;
 
-    void SetEmission(const glm::vec3& color, float intensity) {
-        emissionColor = color;
-        emissionIntensity = intensity;
+    // Прозрачность
+    bool transparent = false;
+    float alpha = 1.0f;
+    bool alphaTest = false;        // true = discard (листва), false = blending (стекло)
+    float alphaCutoff = 0.5f;      // порог отбрасывания
+
+    // Тени от листвы
+    bool alphaTestShadows = true;   // использовать альфа-тест при рендере карты теней
+
+    void SetTransparent(bool enable, float a = 1.0f, bool test = false, float cutoff = 0.5f) {
+        transparent = enable;
+        alpha = glm::clamp(a, 0.0f, 1.0f);
+        alphaTest = test;
+        alphaCutoff = cutoff;
     }
+
+    bool IsTransparent() const { return transparent && alpha < 1.0f; }
 
     // Сериализация
     nlohmann::json ToJson() const;
     bool FromJson(const nlohmann::json& j);
     bool SaveToFile(const std::string& path);
     bool LoadFromFile(const std::string& path);
+    float aoStrength = 1.0f;          // сила AO (0 – отключена, 1 – полная)
+    float roughnessStrength = 1.0f;   // сила roughness-текстуры (0 – используется только базовое значение, 1 – только текстура)
 
 private:
     GLuint m_DiffuseTexture = 0;
@@ -60,7 +77,6 @@ private:
     GLuint m_MetallicTexture = 0;
     GLuint m_AOTexture = 0;
 
-    // Пути к текстурам для сериализации
     std::string m_DiffusePath;
     std::string m_NormalPath;
     std::string m_RoughnessPath;
