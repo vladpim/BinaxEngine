@@ -29,7 +29,6 @@ uniform float normalStrength;
 uniform vec2 uvScale;
 uniform bool useWorldUV;
 
-// --- Освещение ---
 uniform vec3 viewPos;
 uniform float ambientStrength;
 
