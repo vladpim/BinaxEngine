@@ -55,7 +55,6 @@ uniform float alpha = 1.0;
 uniform bool alphaTest = false;
 uniform float alphaCutoff = 0.5;
 
-// --- Источники света ---
 struct Light {
     int type;
     vec3 position;
