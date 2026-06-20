@@ -32,7 +32,6 @@ uniform bool useWorldUV;
 uniform vec3 viewPos;
 uniform float ambientStrength;
 
-// --- Тени ---
 uniform sampler2D shadowMap;
 uniform bool shadowsEnabled;
 uniform bool receiveShadows;
