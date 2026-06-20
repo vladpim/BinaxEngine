@@ -44,7 +44,6 @@ uniform int shadowSamples;
 uniform vec3 emissionColor;
 uniform float emissionIntensity;
 
-// --- Туман ---
 uniform bool fogEnabled;
 uniform int fogType;
 uniform vec3 fogColor;
