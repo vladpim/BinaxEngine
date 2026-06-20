@@ -12,7 +12,6 @@ uniform sampler2D roughnessTexture;
 uniform sampler2D metallicTexture;
 uniform sampler2D aoTexture;
 uniform samplerCube environmentMap;
-
 uniform bool hasDiffuseTexture;
 uniform bool hasNormalMap;
 uniform bool hasRoughnessTexture;
@@ -21,36 +20,28 @@ uniform bool hasAOTexture;
 uniform bool enableReflections;
 uniform float aoStrength = 1.0;
 uniform float roughnessStrength = 1.0;
-
 uniform vec3 objectColor;
 uniform float metallic;
 uniform float roughness;
 uniform float normalStrength;
 uniform vec2 uvScale;
 uniform bool useWorldUV;
-
 uniform vec3 viewPos;
 uniform float ambientStrength;
-
 uniform sampler2D shadowMap;
 uniform bool shadowsEnabled;
 uniform bool receiveShadows;
 uniform float shadowBias;
 uniform float shadowSoftness;
 uniform int shadowSamples;
-
-// --- Эмиссия ---
 uniform vec3 emissionColor;
 uniform float emissionIntensity;
-
 uniform bool fogEnabled;
 uniform int fogType;
 uniform vec3 fogColor;
 uniform float fogDensity;
 uniform float fogStart;
 uniform float fogEnd;
-
-// === НОВЫЕ UNIFORM'Ы ДЛЯ ПРОЗРАЧНОСТИ ===
 uniform float alpha = 1.0;
 uniform bool alphaTest = false;
 uniform float alphaCutoff = 0.5;
@@ -98,7 +89,6 @@ vec3 FresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-// ======================== Функция теней ========================
 float ShadowCalculation(vec4 fragPosLightSpace, float NdotL) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
