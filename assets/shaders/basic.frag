@@ -6,7 +6,6 @@ in vec2 TexCoords;
 in mat3 TBN;
 in vec4 FragPosLightSpace;
 
-// --- Текстуры материала ---
 uniform sampler2D diffuseTexture;
 uniform sampler2D normalMap;
 uniform sampler2D roughnessTexture;
