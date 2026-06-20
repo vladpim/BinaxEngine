@@ -67,7 +67,6 @@ struct Light {
 uniform Light lights[8];
 uniform int numLights;
 
-// ======================== PBR функции ========================
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness * roughness;
     float a2 = a * a;
