@@ -51,13 +51,11 @@ Shader depthShader;
 Shader screenFogShader;
 Skybox skybox;
 
-// Карта теней
 unsigned int depthMapFBO;
 unsigned int depthMap;
 unsigned int SHADOW_WIDTH = 4096;
 unsigned int SHADOW_HEIGHT = 4096;
 
-// Для пост-эффектов
 unsigned int framebuffer;
 unsigned int sceneTexture;
 unsigned int depthTexture;
@@ -84,7 +82,7 @@ void initPostProcessing(int width, int height) {
     // Текстура для цвета
     glGenTextures(1, &sceneTexture);
     glBindTexture(GL_TEXTURE_2D, sceneTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneTexture, 0);
