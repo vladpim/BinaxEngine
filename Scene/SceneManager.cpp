@@ -240,6 +240,10 @@ void SceneManager::Render(Shader& shader) {
     for (const auto& obj : m_Objects) {
         if (obj->IsVisible()) {
             obj->Draw(shader);
+            AddDrawCall();
+            if (auto mesh = obj->GetMesh()) {
+                AddTriangles(mesh->GetIndexCount() / 3);
+            }
         }
     }
 }
@@ -268,6 +272,8 @@ void SceneManager::RenderDepth(Shader& depthShader) {
 
         depthShader.SetMat4("model", glm::value_ptr(obj->GetTransformMatrix()));
         obj->GetMesh()->Draw();
+        AddDrawCall();
+        AddTriangles(obj->GetMesh()->GetIndexCount() / 3);
     }
 }
 
@@ -398,7 +404,6 @@ void SceneManager::RenderWithCulling(Shader& shader, const Frustum& frustum) {
     if (!m_Initialized) return;
     for (const auto& obj : m_Objects) {
         if (!obj->IsVisible()) continue;
-        // Если объект — камера, всегда рисуем? нет, камера не рендерится
         if (obj->IsCamera()) continue;
         if (m_ActiveCamera && m_ActiveCamera->GetFrustumCulling()) {
             glm::vec3 minBB, maxBB;
@@ -407,6 +412,10 @@ void SceneManager::RenderWithCulling(Shader& shader, const Frustum& frustum) {
                 continue;
         }
         obj->Draw(shader);
+        AddDrawCall();
+        if (auto mesh = obj->GetMesh()) {
+            AddTriangles(mesh->GetIndexCount() / 3);
+        }
     }
 }
 
@@ -450,6 +459,8 @@ void SceneManager::RenderLightShafts(const glm::mat4& view, const glm::mat4& pro
         m_ShaftShader.SetVec3("lightColor", obj->GetLightColor().x, obj->GetLightColor().y, obj->GetLightColor().z);
         
         mesh->Draw();
+        AddDrawCall();
+        AddTriangles(mesh->GetIndexCount() / 3);
     }
     
     glDepthMask(GL_TRUE);
@@ -887,4 +898,21 @@ void SceneManager::RenderColliderGizmos(Shader& shader, const glm::mat4& view, c
     glDrawArrays(GL_LINES, 0, (GLsizei)vertexCount);
     glBindVertexArray(0);
     glLineWidth(1.0f);
+}
+
+void SceneManager::ResetStats() {
+    m_Stats.drawCalls = 0;
+    m_Stats.triangleCount = 0;
+}
+
+void SceneManager::AddDrawCall() {
+    ++m_Stats.drawCalls;
+}
+
+void SceneManager::AddTriangles(int count) {
+    m_Stats.triangleCount += count;
+}
+
+const PerformanceStats& SceneManager::GetStats() const {
+    return m_Stats;
 }
