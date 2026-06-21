@@ -776,16 +776,14 @@ nlohmann::json GameObject::ToJson() const {
     j["colliderSize"] = { m_ColliderSize.x, m_ColliderSize.y, m_ColliderSize.z };
     j["showColliderGizmo"] = m_ShowColliderGizmo;
 
-    // Скрипты
-if (!m_ScriptComponents.empty()) {
-    nlohmann::json scriptsJson = nlohmann::json::array();
-    for (const auto& script : m_ScriptComponents) {
-        if (script->IsLoaded()) {
+    // Lua Scripts
+    if (!m_ScriptComponents.empty()) {
+        nlohmann::json scriptsJson = nlohmann::json::array();
+        for (const auto& script : m_ScriptComponents) {
             scriptsJson.push_back(script->GetScriptPath());
         }
+        j["luaScripts"] = scriptsJson;
     }
-    j["luaScripts"] = scriptsJson;
-}
 
     return j;
 }
@@ -937,15 +935,18 @@ bool GameObject::FromJson(const nlohmann::json& j) {
         }
         m_ShowColliderGizmo = j.value("showColliderGizmo", true);
 
-        if (j.contains("luaScripts")) {
-    for (const auto& path : j["luaScripts"]) {
-        auto script = std::make_shared<LuaScriptComponent>();
-        if (script->LoadScript(path.get<std::string>(), this)) {
-            m_ScriptComponents.push_back(script);
-            // Start будет вызван отдельно после загрузки всей сцены
+                // Lua Scripts
+        if (j.contains("luaScripts") && j["luaScripts"].is_array()) {
+            for (const auto& path : j["luaScripts"]) {
+                std::string scriptPath = path.get<std::string>();
+                auto script = std::make_shared<LuaScriptComponent>();
+                if (script->LoadScript(scriptPath, this)) {
+                    m_ScriptComponents.push_back(script);
+                } else {
+                    std::cerr << "[GameObject] Failed to load script: " << scriptPath << std::endl;
+                }
+            }
         }
-    }
-}
 
         return true;
     } catch (const std::exception& e) {
