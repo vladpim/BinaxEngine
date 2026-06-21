@@ -15,6 +15,12 @@ enum FogType {
     FOG_EXP_SQUARED
 };
 
+struct PerformanceStats {
+    int drawCalls = 0;
+    int triangleCount = 0;
+    // можно добавить вершины
+};
+
 class SceneManager {
 public:
     SceneManager();
@@ -78,6 +84,10 @@ public:
     void RenderLightGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection) const;
     void RenderAudioGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection) const;
     void RenderColliderGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection) const;
+    void ResetStats();          // вызывать в начале кадра
+    void AddDrawCall();         // при каждом glDraw*
+    void AddTriangles(int count);
+    const PerformanceStats& GetStats() const;
     
 
 private:
@@ -89,4 +99,5 @@ private:
     float m_CameraPitch = 0.0f;
     FogSettings m_Fog;
     Shader m_ShaftShader;
+    PerformanceStats m_Stats;
 };
