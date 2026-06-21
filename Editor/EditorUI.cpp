@@ -676,12 +676,12 @@ void EditorUI::DrawInspector() {
             ImGui::Text("%s", selected->GetName().c_str());
             ImGui::Separator();
 
-            // Transform
+            // ===== TRANSFORM =====
             if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
                 DrawTransformControls(selected);
             }
 
-            // Если это камера – только Camera секция
+            // ===== CAMERA (если объект камера) =====
             if (selected->IsCamera()) {
                 if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
                     float fov = selected->GetCameraFOV();
@@ -707,7 +707,9 @@ void EditorUI::DrawInspector() {
                     selected->SetShowFrustumGizmo(showGizmo);
                 }
             } else {
-                // Для не-камер – все остальные секции
+                // ===== НЕ-КАМЕРА =====
+
+                // ---- Appearance ----
                 if (ImGui::CollapsingHeader("Appearance", ImGuiTreeNodeFlags_DefaultOpen)) {
                     glm::vec3 color = selected->GetColor();
                     float colorArr[3] = { color.x, color.y, color.z };
@@ -723,7 +725,7 @@ void EditorUI::DrawInspector() {
                     }
                 }
 
-                // Light section
+                // ---- Light ----
                 if (selected->GetLightType() != LT_NONE) {
                     if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen)) {
                         glm::vec3 col = selected->GetLightColor();
@@ -787,6 +789,7 @@ void EditorUI::DrawInspector() {
                     }
                 }
 
+                // ---- Fog ----
                 if (selected->IsFog()) {
                     if (ImGui::CollapsingHeader("Fog Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
                         bool enabled = selected->GetFogEnabled();
@@ -819,7 +822,7 @@ void EditorUI::DrawInspector() {
                     }
                 }
 
-                // Material
+                // ---- Material ----
                 if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen)) {
                     auto material = selected->GetMaterial();
                     if (!material) {
@@ -837,7 +840,7 @@ void EditorUI::DrawInspector() {
                     }
                 }
 
-                // Mesh
+                // ---- Mesh ----
                 if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
                     const char* meshNames[] = { "Cube", "Sphere", "Cylinder", "Cone", "Pyramid", "Plane" };
                     static int currentMesh = -1;
@@ -855,7 +858,7 @@ void EditorUI::DrawInspector() {
                     }
                 }
 
-                // Rendering
+                // ---- Rendering ----
                 if (ImGui::CollapsingHeader("Rendering", ImGuiTreeNodeFlags_DefaultOpen)) {
                     bool cast = selected->CastShadows();
                     bool receive = selected->ReceiveShadows();
@@ -863,138 +866,128 @@ void EditorUI::DrawInspector() {
                     if (ImGui::Checkbox("Receive Shadows", &receive)) selected->SetReceiveShadows(receive);
                 }
 
-if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen)) {
-    bool canAddComponents = !selected->IsCamera() && selected->GetLightType() == LT_NONE;
-    if (!canAddComponents) {
-        ImGui::TextDisabled("Components not available for lights or cameras");
-    } else {
-        // ========== PHYSICS ==========
-        bool hasPhysics = selected->HasRigidBody() || selected->GetColliderType() != COLLIDER_NONE;
-        if (hasPhysics) {
-            DrawPhysicsComponents(selected);
-            if (ImGui::Button("Remove Physics")) {
-                selected->RemoveRigidBody();
-                selected->SetColliderType(COLLIDER_NONE);
-            }
-        } else {
-            if (ImGui::Button("Add Component")) {
-                ImGui::OpenPopup("add_component_popup");
-            }
-            if (ImGui::BeginPopup("add_component_popup")) {
-                if (ImGui::MenuItem("Physics")) {
-                    if (selected->CanHavePhysics()) {
-                        selected->SetColliderType(COLLIDER_BOX);
-                        selected->AddRigidBody(1.0f);
-                        selected->SaveInitialTransform();
-                        PhysicsWorld::GetInstance().RegisterGameObject(selected.get());
+                // ===== COMPONENTS =====
+                if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    bool canAddComponents = !selected->IsCamera() && selected->GetLightType() == LT_NONE;
+                    if (!canAddComponents) {
+                        ImGui::TextDisabled("Components not available for lights or cameras");
                     } else {
-                        ImGui::OpenPopup("physics_error");
-                    }
-                }
-                if (ImGui::MenuItem("Audio Source")) {
-                    selected->EnableAudioSource();
-                }
-                ImGui::EndPopup();
-            }
-            if (ImGui::BeginPopupModal("physics_error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-                ImGui::Text("Cannot add physics to object with parent or children!");
-                if (ImGui::Button("OK")) ImGui::CloseCurrentPopup();
-                ImGui::EndPopup();
-            }
-        }
-
-        // ========== COLLIDER PARAMETERS ==========
-        if (selected->GetColliderType() != COLLIDER_NONE) {
-            if (ImGui::CollapsingHeader("Collider", ImGuiTreeNodeFlags_DefaultOpen)) {
-                glm::vec3 offset = selected->GetColliderOffset();
-                if (ImGui::DragFloat3("Offset", glm::value_ptr(offset), 0.05f)) {
-                    selected->SetColliderOffset(offset);
-                }
-                ColliderType type = selected->GetColliderType();
-                if (type == COLLIDER_BOX) {
-                    glm::vec3 half = selected->GetColliderHalfExtents();
-                    if (ImGui::DragFloat3("Half Extents", glm::value_ptr(half), 0.05f, 0.01f, 10.0f)) {
-                        selected->SetColliderHalfExtents(half);
-                    }
-                } else if (type == COLLIDER_SPHERE) {
-                    float radius = selected->GetColliderRadius();
-                    if (ImGui::DragFloat("Radius", &radius, 0.05f, 0.01f, 10.0f)) {
-                        selected->SetColliderRadius(radius);
-                    }
-                } else if (type == COLLIDER_CAPSULE) {
-                    float radius = selected->GetColliderRadius();
-                    float height = selected->GetColliderHeight();
-                    if (ImGui::DragFloat("Radius", &radius, 0.05f, 0.01f, 10.0f)) {
-                        selected->SetColliderRadius(radius);
-                    }
-                    if (ImGui::DragFloat("Height", &height, 0.05f, 0.01f, 20.0f)) {
-                        selected->SetColliderHeight(height);
-                    }
-                }
-                bool showGizmo = selected->GetShowColliderGizmo();
-                if (ImGui::Checkbox("Show Gizmo", &showGizmo)) {
-                    selected->SetShowColliderGizmo(showGizmo);
-                }
-            }
-        }
-
-        // ========== LUA SCRIPTS (теперь в основном интерфейсе) ==========
-        if (ImGui::CollapsingHeader("Lua Scripts", ImGuiTreeNodeFlags_DefaultOpen)) {
-            auto& scripts = selected->GetScriptComponents();
-            if (scripts.empty()) {
-                ImGui::TextDisabled("No scripts attached.");
-            } else {
-                for (size_t i = 0; i < scripts.size(); ++i) {
-                    ImGui::PushID(static_cast<int>(i));
-                    ImGui::Text("Script: %s", scripts[i]->GetScriptPath().c_str());
-                    ImGui::SameLine();
-                    if (ImGui::Button("Reload")) {
-                        scripts[i]->Reload();
-                        scripts[i]->Start(); // перезапускаем
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Remove")) {
-                        selected->RemoveScriptComponent(i);  // нужен этот метод
-                        ImGui::PopID();
-                        break; // выходим, т.к. вектор изменился
-                    }
-                    ImGui::PopID();
-                }
-            }
-            if (ImGui::Button("Add Lua Script")) {
-                std::string path = OpenFileDialog("*.lua");
-                if (!path.empty()) {
-                    auto script = std::make_shared<LuaScriptComponent>();
-                    if (script->LoadScript(path, selected.get())) {
-                        selected->AddScriptComponent(script);
-                        script->Start();
-                    }
-                }
-            }
-        }
-
-        // ========== AUDIO SOURCE ==========
-        if (selected->IsAudioSourceEnabled()) {
-            if (ImGui::CollapsingHeader("Audio Source", ImGuiTreeNodeFlags_DefaultOpen)) {
-                DrawAudioSourceUI(selected);
-                if (ImGui::Button("Remove Component")) {
-                    selected->DisableAudioSource();
-                }
-            }
-        }
-
-    } // конец else (canAddComponents)
-} // конец if (CollapsingHeader Components)
-
-                // Audio Source component (если включён)
-                if (selected->IsAudioSourceEnabled()) {
-                    if (ImGui::CollapsingHeader("Audio Source", ImGuiTreeNodeFlags_DefaultOpen)) {
-                        DrawAudioSourceUI(selected);
-                        if (ImGui::Button("Remove Component")) {
-                            selected->DisableAudioSource();
+                        // ---- Physics ----
+                        bool hasPhysics = selected->HasRigidBody() || selected->GetColliderType() != COLLIDER_NONE;
+                        if (hasPhysics) {
+                            DrawPhysicsComponents(selected);
+                            if (ImGui::Button("Remove Physics")) {
+                                selected->RemoveRigidBody();
+                                selected->SetColliderType(COLLIDER_NONE);
+                            }
+                        } else {
+                            if (ImGui::Button("Add Component")) {
+                                ImGui::OpenPopup("add_component_popup");
+                            }
+                            if (ImGui::BeginPopup("add_component_popup")) {
+                                if (ImGui::MenuItem("Physics")) {
+                                    if (selected->CanHavePhysics()) {
+                                        selected->SetColliderType(COLLIDER_BOX);
+                                        selected->AddRigidBody(1.0f);
+                                        selected->SaveInitialTransform();
+                                        PhysicsWorld::GetInstance().RegisterGameObject(selected.get());
+                                    } else {
+                                        ImGui::OpenPopup("physics_error");
+                                    }
+                                }
+                                if (ImGui::MenuItem("Audio Source")) {
+                                    selected->EnableAudioSource();
+                                }
+                                // ===== НОВЫЙ ПУНКТ: LUA SCRIPT =====
+                                if (ImGui::MenuItem("Lua Script")) {
+                                    std::string path = OpenFileDialog("*.lua");
+                                    if (!path.empty()) {
+                                        auto script = std::make_shared<LuaScriptComponent>();
+                                        if (script->LoadScript(path, selected.get())) {
+                                            selected->AddScriptComponent(script);
+                                            // В редакторе не запускаем скрипт сразу, только добавляем
+                                        }
+                                    }
+                                }
+                                ImGui::EndPopup();
+                            }
+                            if (ImGui::BeginPopupModal("physics_error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                                ImGui::Text("Cannot add physics to object with parent or children!");
+                                if (ImGui::Button("OK")) ImGui::CloseCurrentPopup();
+                                ImGui::EndPopup();
+                            }
                         }
-                    }
-                }
+
+                        // ---- Collider Parameters ----
+                        if (selected->GetColliderType() != COLLIDER_NONE) {
+                            if (ImGui::CollapsingHeader("Collider", ImGuiTreeNodeFlags_DefaultOpen)) {
+                                glm::vec3 offset = selected->GetColliderOffset();
+                                if (ImGui::DragFloat3("Offset", glm::value_ptr(offset), 0.05f)) {
+                                    selected->SetColliderOffset(offset);
+                                }
+                                ColliderType type = selected->GetColliderType();
+                                if (type == COLLIDER_BOX) {
+                                    glm::vec3 half = selected->GetColliderHalfExtents();
+                                    if (ImGui::DragFloat3("Half Extents", glm::value_ptr(half), 0.05f, 0.01f, 10.0f)) {
+                                        selected->SetColliderHalfExtents(half);
+                                    }
+                                } else if (type == COLLIDER_SPHERE) {
+                                    float radius = selected->GetColliderRadius();
+                                    if (ImGui::DragFloat("Radius", &radius, 0.05f, 0.01f, 10.0f)) {
+                                        selected->SetColliderRadius(radius);
+                                    }
+                                } else if (type == COLLIDER_CAPSULE) {
+                                    float radius = selected->GetColliderRadius();
+                                    float height = selected->GetColliderHeight();
+                                    if (ImGui::DragFloat("Radius", &radius, 0.05f, 0.01f, 10.0f)) {
+                                        selected->SetColliderRadius(radius);
+                                    }
+                                    if (ImGui::DragFloat("Height", &height, 0.05f, 0.01f, 20.0f)) {
+                                        selected->SetColliderHeight(height);
+                                    }
+                                }
+                                bool showGizmo = selected->GetShowColliderGizmo();
+                                if (ImGui::Checkbox("Show Gizmo", &showGizmo)) {
+                                    selected->SetShowColliderGizmo(showGizmo);
+                                }
+                            }
+                        }
+
+                        // ===== LUA SCRIPTS (КАК КОМПОНЕНТЫ) =====
+                        auto& scripts = selected->GetScriptComponents();
+                        if (!scripts.empty()) {
+                            for (size_t i = 0; i < scripts.size(); ++i) {
+                                ImGui::PushID(static_cast<int>(i));
+                                std::string label = "Lua Script: " + std::filesystem::path(scripts[i]->GetScriptPath()).filename().string();
+                                if (ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                                    ImGui::Text("Path: %s", scripts[i]->GetScriptPath().c_str());
+                                    if (ImGui::Button("Reload")) {
+                                        scripts[i]->Reload();
+                                        scripts[i]->Start(); // если нужно запустить в редакторе
+                                    }
+                                    ImGui::SameLine();
+                                    if (ImGui::Button("Remove")) {
+                                        selected->RemoveScriptComponent(i);
+                                        ImGui::PopID();
+                                        break;
+                                    }
+                                }
+                                ImGui::PopID();
+                            }
+                        }
+
+                        // ---- Audio Source (если включён) ----
+                        if (selected->IsAudioSourceEnabled()) {
+                            if (ImGui::CollapsingHeader("Audio Source", ImGuiTreeNodeFlags_DefaultOpen)) {
+                                DrawAudioSourceUI(selected);
+                                if (ImGui::Button("Remove Component")) {
+                                    selected->DisableAudioSource();
+                                }
+                            }
+                        }
+
+                    } // конец else (canAddComponents)
+                } // конец if (CollapsingHeader Components)
 
             } // конец else (не камера)
 
