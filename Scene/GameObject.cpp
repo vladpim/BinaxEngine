@@ -9,6 +9,7 @@
 #include "Audio/AudioEngine.h"
 #include "Graphics/Primitives.h"
 #include "Graphics/Model.h"
+#include "Script/ScriptManager.h"
 
 GameObject::GameObject(const std::string& name)
     : m_Name(name) {
@@ -775,6 +776,17 @@ nlohmann::json GameObject::ToJson() const {
     j["colliderSize"] = { m_ColliderSize.x, m_ColliderSize.y, m_ColliderSize.z };
     j["showColliderGizmo"] = m_ShowColliderGizmo;
 
+    // Скрипты
+if (!m_ScriptComponents.empty()) {
+    nlohmann::json scriptsJson = nlohmann::json::array();
+    for (const auto& script : m_ScriptComponents) {
+        if (script->IsLoaded()) {
+            scriptsJson.push_back(script->GetScriptPath());
+        }
+    }
+    j["luaScripts"] = scriptsJson;
+}
+
     return j;
 }
 
@@ -925,6 +937,16 @@ bool GameObject::FromJson(const nlohmann::json& j) {
         }
         m_ShowColliderGizmo = j.value("showColliderGizmo", true);
 
+        if (j.contains("luaScripts")) {
+    for (const auto& path : j["luaScripts"]) {
+        auto script = std::make_shared<LuaScriptComponent>();
+        if (script->LoadScript(path.get<std::string>(), this)) {
+            m_ScriptComponents.push_back(script);
+            // Start будет вызван отдельно после загрузки всей сцены
+        }
+    }
+}
+
         return true;
     } catch (const std::exception& e) {
         std::cerr << "Error deserializing GameObject: " << e.what() << std::endl;
@@ -992,4 +1014,16 @@ void GameObject::SetColliderHeight(float height) {
 void GameObject::RecreateCollider() {
     if (m_colliderType == COLLIDER_NONE) return;
     SetColliderType(m_colliderType); // пересоздаст форму и тело
+}
+
+void GameObject::AddScriptComponent(std::shared_ptr<LuaScriptComponent> script) {
+    m_ScriptComponents.push_back(script);
+}
+
+void GameObject::RemoveScriptComponent(size_t index) {
+    if (index < m_ScriptComponents.size()) {
+        // Вызываем OnDestroy перед удалением
+        m_ScriptComponents[index]->OnDestroy();
+        m_ScriptComponents.erase(m_ScriptComponents.begin() + index);
+    }
 }
