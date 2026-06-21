@@ -7,6 +7,8 @@
 #include "Graphics/Mesh.h"
 #include "Graphics/Material.h"   
 #include <glm/gtc/quaternion.hpp>
+#include "Script/ScriptManager.h"
+#include "LuaScriptComponent.h"
 
 class btRigidBody;
 class btCollisionShape;
@@ -183,6 +185,10 @@ public:
     void SetShowColliderGizmo(bool show) { m_ShowColliderGizmo = show; }
     bool GetShowColliderGizmo() const { return m_ShowColliderGizmo; }
     void RecreateCollider(); // пересоздать коллизионную форму и тело
+        // ========== SCRIPT COMPONENTS ==========
+    void AddScriptComponent(std::shared_ptr<LuaScriptComponent> script);
+    const std::vector<std::shared_ptr<LuaScriptComponent>>& GetScriptComponents() const { return m_ScriptComponents; }
+    void RemoveScriptComponent(size_t index);
 
 private:
     std::string m_Name;
@@ -252,4 +258,5 @@ private:
     glm::vec3 m_ColliderOffset = glm::vec3(0.0f);
     glm::vec3 m_ColliderSize = glm::vec3(0.5f); // интерпретация зависит от типа
     bool m_ShowColliderGizmo = true;
+    std::vector<std::shared_ptr<LuaScriptComponent>> m_ScriptComponents;
 };
