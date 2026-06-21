@@ -42,7 +42,6 @@ void SceneManager::SaveScene(const std::string& filename) {
         }
     }
     sceneJson["activeCameraIndex"] = activeCamIdx;
-    extern EditorUI g_EditorUI;
     sceneJson["editorSettings"] = g_EditorUI.SettingsToJson();
     // Сохраняем в файл
     std::ofstream file(filename);
