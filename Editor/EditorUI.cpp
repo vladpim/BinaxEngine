@@ -642,7 +642,7 @@ void EditorUI::DrawInspector() {
             ImGui::Text("%s", selected->GetName().c_str());
             ImGui::Separator();
 
-            // Transform – всегда
+            // Transform
             if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
                 DrawTransformControls(selected);
             }
@@ -669,10 +669,10 @@ void EditorUI::DrawInspector() {
                         m_SceneManager->SetActiveCamera(selected);
                 }
                 bool showGizmo = selected->GetShowFrustumGizmo();
-if (ImGui::Checkbox("Show Frustum Gizmo", &showGizmo)) {
-    selected->SetShowFrustumGizmo(showGizmo);
-}
-            } else {   // <-- теперь else правильно привязан к if (selected->IsCamera())
+                if (ImGui::Checkbox("Show Frustum Gizmo", &showGizmo)) {
+                    selected->SetShowFrustumGizmo(showGizmo);
+                }
+            } else {
                 // Для не-камер – все остальные секции
                 if (ImGui::CollapsingHeader("Appearance", ImGuiTreeNodeFlags_DefaultOpen)) {
                     glm::vec3 color = selected->GetColor();
@@ -708,44 +708,41 @@ if (ImGui::Checkbox("Show Frustum Gizmo", &showGizmo)) {
                             }
                         }
                         ImGui::Separator();
-bool showGizmo = selected->GetShowLightGizmo();
-if (ImGui::Checkbox("Show Gizmo", &showGizmo)) {
-    selected->SetShowLightGizmo(showGizmo);
-}
+                        bool showGizmo = selected->GetShowLightGizmo();
+                        if (ImGui::Checkbox("Show Gizmo", &showGizmo)) {
+                            selected->SetShowLightGizmo(showGizmo);
+                        }
                         if (lightType == LT_SPOT) {
                             float angle = selected->GetLightAngleDeg();
                             if (ImGui::SliderFloat("Angle (deg)", &angle, 5.0f, 120.0f)) {
                                 selected->SetLightAngle(angle);
                             }
                             glm::vec3 dir = selected->GetLightDirection();
-                            
                             if (ImGui::DragFloat3("Direction", glm::value_ptr(dir), 0.05f, -1.0f, 1.0f)) {
                                 selected->SetLightDirection(glm::normalize(dir));
                             }
-                            // после настройки угла и направления
                             ImGui::Separator();
-bool showGizmo = selected->GetShowLightGizmo();
-if (ImGui::Checkbox("Show Gizmo", &showGizmo)) {
-    selected->SetShowLightGizmo(showGizmo);
-}
-ImGui::Separator();
-ImGui::Text("Fake Volumetric Cone");
-bool shaft = selected->GetShaftEnabled();
-if (ImGui::Checkbox("Enable Shaft", &shaft)) {
-    selected->SetShaftEnabled(shaft);
-}
-if (shaft) {
-    float intensity = selected->GetShaftIntensity();
-    if (ImGui::SliderFloat("Intensity", &intensity, 0.0f, 1.5f))
-        selected->SetShaftIntensity(intensity);
-    float softness = selected->GetShaftSoftness();
-    if (ImGui::SliderFloat("Softness", &softness, 0.2f, 2.0f))
-        selected->SetShaftSoftness(softness);
-    float density = selected->GetShaftDensity();
-if (ImGui::SliderFloat("Density", &density, 0.0f, 1.0f))
-    selected->SetShaftDensity(density);
-}
-
+                            bool showGizmo2 = selected->GetShowLightGizmo();
+                            if (ImGui::Checkbox("Show Gizmo", &showGizmo2)) {
+                                selected->SetShowLightGizmo(showGizmo2);
+                            }
+                            ImGui::Separator();
+                            ImGui::Text("Fake Volumetric Cone");
+                            bool shaft = selected->GetShaftEnabled();
+                            if (ImGui::Checkbox("Enable Shaft", &shaft)) {
+                                selected->SetShaftEnabled(shaft);
+                            }
+                            if (shaft) {
+                                float intensity2 = selected->GetShaftIntensity();
+                                if (ImGui::SliderFloat("Intensity", &intensity2, 0.0f, 1.5f))
+                                    selected->SetShaftIntensity(intensity2);
+                                float softness = selected->GetShaftSoftness();
+                                if (ImGui::SliderFloat("Softness", &softness, 0.2f, 2.0f))
+                                    selected->SetShaftSoftness(softness);
+                                float density = selected->GetShaftDensity();
+                                if (ImGui::SliderFloat("Density", &density, 0.0f, 1.0f))
+                                    selected->SetShaftDensity(density);
+                            }
                         }
                         if (lightType == LT_DIRECTIONAL) {
                             glm::vec3 dir = selected->GetLightDirection();
@@ -788,7 +785,7 @@ if (ImGui::SliderFloat("Density", &density, 0.0f, 1.0f))
                     }
                 }
 
-                // Material, Mesh, Rendering, Components sections...
+                // Material
                 if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen)) {
                     auto material = selected->GetMaterial();
                     if (!material) {
@@ -806,16 +803,17 @@ if (ImGui::SliderFloat("Density", &density, 0.0f, 1.0f))
                     }
                 }
 
+                // Mesh
                 if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
                     const char* meshNames[] = { "Cube", "Sphere", "Cylinder", "Cone", "Pyramid", "Plane" };
                     static int currentMesh = -1;
                     if (ImGui::Combo("Mesh Type", &currentMesh, meshNames, IM_ARRAYSIZE(meshNames))) {
                         std::shared_ptr<Mesh> newMesh;
                         switch (currentMesh) {
-    case 0: newMesh = Primitives::CreateCube(); break;
-    case 1: newMesh = Primitives::CreateSphere(); break;
-    case 2: newMesh = Primitives::CreateCylinder(); break;
-    case 3: newMesh = Primitives::CreateCone(); break;
+                            case 0: newMesh = Primitives::CreateCube(); break;
+                            case 1: newMesh = Primitives::CreateSphere(); break;
+                            case 2: newMesh = Primitives::CreateCylinder(); break;
+                            case 3: newMesh = Primitives::CreateCone(); break;
                             case 4: newMesh = Primitives::CreatePyramid(); break;
                             case 5: newMesh = Primitives::CreatePlane(); break;
                         }
@@ -823,6 +821,7 @@ if (ImGui::SliderFloat("Density", &density, 0.0f, 1.0f))
                     }
                 }
 
+                // Rendering
                 if (ImGui::CollapsingHeader("Rendering", ImGuiTreeNodeFlags_DefaultOpen)) {
                     bool cast = selected->CastShadows();
                     bool receive = selected->ReceiveShadows();
@@ -830,60 +829,99 @@ if (ImGui::SliderFloat("Density", &density, 0.0f, 1.0f))
                     if (ImGui::Checkbox("Receive Shadows", &receive)) selected->SetReceiveShadows(receive);
                 }
 
+                // Components
                 if (ImGui::CollapsingHeader("Components", ImGuiTreeNodeFlags_DefaultOpen)) {
-    bool canAddComponents = !selected->IsCamera() && selected->GetLightType() == LT_NONE;
-    if (!canAddComponents) {
-        ImGui::TextDisabled("Components not available for lights or cameras");
-    } else {
-        bool hasPhysics = selected->HasRigidBody() || selected->GetColliderType() != COLLIDER_NONE;
-        if (hasPhysics) {
-            DrawPhysicsComponents(selected);
-            if (ImGui::Button("Remove Physics")) {
-                selected->RemoveRigidBody();
-                selected->SetColliderType(COLLIDER_NONE);
-            }
-        } else {
-            if (ImGui::Button("Add Component")) {
-                ImGui::OpenPopup("add_component_popup");
-            }
-            if (ImGui::BeginPopup("add_component_popup")) {
-                if (ImGui::MenuItem("Physics")) {
-                    if (selected->CanHavePhysics()) {
-                        selected->SetColliderType(COLLIDER_BOX);
-                        selected->AddRigidBody(1.0f);
-                        selected->SaveInitialTransform();
-                        PhysicsWorld::GetInstance().RegisterGameObject(selected.get());
+                    bool canAddComponents = !selected->IsCamera() && selected->GetLightType() == LT_NONE;
+                    if (!canAddComponents) {
+                        ImGui::TextDisabled("Components not available for lights or cameras");
                     } else {
-                        ImGui::OpenPopup("physics_error");
+                        bool hasPhysics = selected->HasRigidBody() || selected->GetColliderType() != COLLIDER_NONE;
+                        if (hasPhysics) {
+                            DrawPhysicsComponents(selected);
+                            if (ImGui::Button("Remove Physics")) {
+                                selected->RemoveRigidBody();
+                                selected->SetColliderType(COLLIDER_NONE);
+                            }
+                        } else {
+                            if (ImGui::Button("Add Component")) {
+                                ImGui::OpenPopup("add_component_popup");
+                            }
+                            if (ImGui::BeginPopup("add_component_popup")) {
+                                if (ImGui::MenuItem("Physics")) {
+                                    if (selected->CanHavePhysics()) {
+                                        selected->SetColliderType(COLLIDER_BOX);
+                                        selected->AddRigidBody(1.0f);
+                                        selected->SaveInitialTransform();
+                                        PhysicsWorld::GetInstance().RegisterGameObject(selected.get());
+                                    } else {
+                                        ImGui::OpenPopup("physics_error");
+                                    }
+                                }
+                                if (ImGui::MenuItem("Audio Source")) {
+                                    selected->EnableAudioSource();
+                                }
+                                ImGui::EndPopup();
+                            }
+                            if (ImGui::BeginPopupModal("physics_error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                                ImGui::Text("Cannot add physics to object with parent or children!");
+                                if (ImGui::Button("OK")) ImGui::CloseCurrentPopup();
+                                ImGui::EndPopup();
+                            }
+                        } // конец if (hasPhysics) else
+
+                        // ---------- Collider Parameters ----------
+                        if (selected->GetColliderType() != COLLIDER_NONE) {
+                            if (ImGui::CollapsingHeader("Collider", ImGuiTreeNodeFlags_DefaultOpen)) {
+                                glm::vec3 offset = selected->GetColliderOffset();
+                                if (ImGui::DragFloat3("Offset", glm::value_ptr(offset), 0.05f)) {
+                                    selected->SetColliderOffset(offset);
+                                }
+                                ColliderType type = selected->GetColliderType();
+                                if (type == COLLIDER_BOX) {
+                                    glm::vec3 half = selected->GetColliderHalfExtents();
+                                    if (ImGui::DragFloat3("Half Extents", glm::value_ptr(half), 0.05f, 0.01f, 10.0f)) {
+                                        selected->SetColliderHalfExtents(half);
+                                    }
+                                } else if (type == COLLIDER_SPHERE) {
+                                    float radius = selected->GetColliderRadius();
+                                    if (ImGui::DragFloat("Radius", &radius, 0.05f, 0.01f, 10.0f)) {
+                                        selected->SetColliderRadius(radius);
+                                    }
+                                } else if (type == COLLIDER_CAPSULE) {
+                                    float radius = selected->GetColliderRadius();
+                                    float height = selected->GetColliderHeight();
+                                    if (ImGui::DragFloat("Radius", &radius, 0.05f, 0.01f, 10.0f)) {
+                                        selected->SetColliderRadius(radius);
+                                    }
+                                    if (ImGui::DragFloat("Height", &height, 0.05f, 0.01f, 20.0f)) {
+                                        selected->SetColliderHeight(height);
+                                    }
+                                }
+                                bool showGizmo = selected->GetShowColliderGizmo();
+                                if (ImGui::Checkbox("Show Gizmo", &showGizmo)) {
+                                    selected->SetShowColliderGizmo(showGizmo);
+                                }
+                            }
+                        }
+                    } // конец else от if (!canAddComponents)
+                } // конец if (ImGui::CollapsingHeader("Components", ...))
+
+                // Audio Source component (если включён)
+                if (selected->IsAudioSourceEnabled()) {
+                    if (ImGui::CollapsingHeader("Audio Source", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        DrawAudioSourceUI(selected);
+                        if (ImGui::Button("Remove Component")) {
+                            selected->DisableAudioSource();
+                        }
                     }
                 }
-                if (ImGui::MenuItem("Audio Source")) {
-                    selected->EnableAudioSource();
-                }
-                ImGui::EndPopup();
-            }
-            if (ImGui::BeginPopupModal("physics_error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-                ImGui::Text("Cannot add physics to object with parent or children!");
-                if (ImGui::Button("OK")) ImGui::CloseCurrentPopup();
-                ImGui::EndPopup();
-            }
-        } // конец if (hasPhysics) else
 
-        // Отображение компонента Audio Source, если он включён
-        if (selected->IsAudioSourceEnabled()) {
-            if (ImGui::CollapsingHeader("Audio Source", ImGuiTreeNodeFlags_DefaultOpen)) {
-                DrawAudioSourceUI(selected);
-                if (ImGui::Button("Remove Component")) {
-                    selected->DisableAudioSource();
-                }
-            }
-        }
-    } 
-}               
-}
-}
- }
+            } // конец else (не камера)
+
+        } // конец if (selected)
+
         ImGui::End();
+    } // конец if (ImGui::Begin("Inspector"))
 }
 
 void EditorUI::DrawMaterialControls(std::shared_ptr<GameObject> obj) {
