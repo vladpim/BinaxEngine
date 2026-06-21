@@ -20,18 +20,7 @@ void PhysicsWorld::Initialize() {
 void PhysicsWorld::Update(float deltaTime) {
     if (!m_isSimulating) return;
     if (m_world) {
-        std::cout << "Physics step, delta=" << deltaTime << ", bodies=" << m_world->getNumCollisionObjects() << std::endl;
         m_world->stepSimulation(deltaTime, 10);
-        // Вывод позиции первого динамического тела
-        for (int i = 0; i < m_world->getNumCollisionObjects(); i++) {
-            btCollisionObject* obj = m_world->getCollisionObjectArray()[i];
-            btRigidBody* body = btRigidBody::upcast(obj);
-            if (body && !body->isStaticObject()) {
-                btVector3 pos = body->getCenterOfMassPosition();
-                std::cout << "Physics pos y = " << pos.y() << std::endl;
-                break;
-            }
-        }
     }
 }
 
