@@ -19,7 +19,6 @@ GameObject::~GameObject() {
         parent->RemoveChild(this);
     }
     
-    // 2. Удаляем физическое тело, если оно есть
     if (m_rigidBody) {
         PhysicsWorld::GetInstance().RemoveRigidBody(m_rigidBody);
         delete m_rigidBody->getMotionState();
