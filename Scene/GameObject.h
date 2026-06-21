@@ -171,6 +171,18 @@ public:
     std::string GetMeshSourceType() const { return m_MeshSourceType; }
     std::string GetMeshPrimitiveType() const { return m_MeshPrimitiveType; }
     std::string GetMeshPath() const { return m_MeshPath; }
+        // ========== COLLIDER PARAMETERS ==========
+    void SetColliderOffset(const glm::vec3& offset);
+    glm::vec3 GetColliderOffset() const { return m_ColliderOffset; }
+    void SetColliderHalfExtents(const glm::vec3& halfExtents);
+    glm::vec3 GetColliderHalfExtents() const { return m_ColliderSize; }
+    void SetColliderRadius(float radius);
+    float GetColliderRadius() const { return m_ColliderSize.x; }
+    void SetColliderHeight(float height);
+    float GetColliderHeight() const { return m_ColliderSize.y; }
+    void SetShowColliderGizmo(bool show) { m_ShowColliderGizmo = show; }
+    bool GetShowColliderGizmo() const { return m_ShowColliderGizmo; }
+    void RecreateCollider(); // пересоздать коллизионную форму и тело
 
 private:
     std::string m_Name;
@@ -236,4 +248,8 @@ private:
     std::string m_MeshSourceType;      // "primitive" или "model"
     std::string m_MeshPrimitiveType;   // "cube", "sphere", "cylinder", "cone", "pyramid", "plane"
     std::string m_MeshPath;            // путь к файлу модели
+        // ========== COLLIDER PARAMETERS ==========
+    glm::vec3 m_ColliderOffset = glm::vec3(0.0f);
+    glm::vec3 m_ColliderSize = glm::vec3(0.5f); // интерпретация зависит от типа
+    bool m_ShowColliderGizmo = true;
 };
