@@ -36,9 +36,9 @@ struct EditorSettings {
     int shadowMapSize = 4096;
     float shadowSoftness = 2.0f;
     int shadowSamples = 9;
-    float shadowNearQualityRadius = 30.0f;   // радиус идеальных теней (метры)
-    float shadowFarClip = 100.0f;            // дальность отбрасывания теней (метры)
-    bool shadowHighQualityMode = true;   // true = качественные тени вблизи (30 м), false = дальние тени (farClip)
+    float shadowNearQualityRadius = 30.0f;
+    float shadowFarClip = 100.0f;
+    bool shadowHighQualityMode = true;
     float ambientStrength = 0.05f;
 };
 class EditorUI {
@@ -66,6 +66,9 @@ public:
     std::string m_CurrentScenePath = "scene.bxlvl";
     nlohmann::json SettingsToJson() const;
     bool SettingsFromJson(const nlohmann::json& j);
+    void TogglePlayMode();
+    bool IsPlayMode() const { return m_IsPlayMode; }
+
 private:
     void SetupImGuiStyle();
     void DrawMainMenuBar();
@@ -105,6 +108,7 @@ private:
     ImGuizmo::OPERATION m_CurrentGizmoOperation = ImGuizmo::TRANSLATE;
     ImGuizmo::MODE m_CurrentGizmoMode = ImGuizmo::WORLD;
     EditorTheme m_Theme;
+    bool m_IsPlayMode = false;
     Skybox* m_Skybox = nullptr;
     std::string m_SkyboxPaths[6] = {
     "resources/embedded_assets/skybox/right.png",
