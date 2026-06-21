@@ -750,3 +750,141 @@ void SceneManager::RenderAudioGizmos(Shader& shader, const glm::mat4& view, cons
     glBindVertexArray(0);
     glLineWidth(1.0f);
 }
+
+void SceneManager::RenderColliderGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection) const {
+    if (!m_Initialized) return;
+
+    // Статические предрасчитанные геометрии (окружности для сферы)
+    static std::vector<glm::vec3> circleXY, circleXZ, circleYZ;
+    static bool initGeometry = false;
+    if (!initGeometry) {
+        const int segments = 32;
+        for (int i = 0; i <= segments; ++i) {
+            float angle = 2.0f * 3.14159265359f * i / segments;
+            float x = cosf(angle), y = sinf(angle);
+            circleXY.emplace_back(x, y, 0.0f);
+            circleXZ.emplace_back(x, 0.0f, y);
+            circleYZ.emplace_back(0.0f, x, y);
+        }
+        initGeometry = true;
+    }
+
+    // Статический VAO/VBO
+    static GLuint colliderVAO = 0, colliderVBO = 0;
+    static size_t vboCapacity = 0;
+    if (colliderVAO == 0) {
+        glGenVertexArrays(1, &colliderVAO);
+        glGenBuffers(1, &colliderVBO);
+        glBindVertexArray(colliderVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, colliderVBO);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+
+    std::vector<glm::vec3> allLines;
+    allLines.reserve(20000);
+
+    for (const auto& obj : m_Objects) {
+        if (!obj->GetShowColliderGizmo()) continue;
+        ColliderType type = obj->GetColliderType();
+        if (type == COLLIDER_NONE) continue;
+
+        glm::vec3 worldPos = obj->GetWorldPosition();
+        glm::mat4 objTransform = obj->GetTransformMatrix();
+        glm::vec3 offsetWorld = glm::vec3(objTransform * glm::vec4(obj->GetColliderOffset(), 0.0f));
+        glm::vec3 center = worldPos + offsetWorld;
+
+        if (type == COLLIDER_BOX) {
+            glm::vec3 half = obj->GetColliderHalfExtents();
+            glm::vec3 min = center - half;
+            glm::vec3 max = center + half;
+            glm::vec3 corners[8] = {
+                glm::vec3(min.x, min.y, min.z),
+                glm::vec3(max.x, min.y, min.z),
+                glm::vec3(max.x, max.y, min.z),
+                glm::vec3(min.x, max.y, min.z),
+                glm::vec3(min.x, min.y, max.z),
+                glm::vec3(max.x, min.y, max.z),
+                glm::vec3(max.x, max.y, max.z),
+                glm::vec3(min.x, max.y, max.z)
+            };
+            int edges[12][2] = {
+                {0,1},{1,2},{2,3},{3,0},
+                {4,5},{5,6},{6,7},{7,4},
+                {0,4},{1,5},{2,6},{3,7}
+            };
+            for (auto& edge : edges) {
+                allLines.push_back(corners[edge[0]]);
+                allLines.push_back(corners[edge[1]]);
+            }
+        }
+        else if (type == COLLIDER_SPHERE) {
+            float radius = obj->GetColliderRadius();
+            auto addCircle = [&](const std::vector<glm::vec3>& unitCircle) {
+                for (size_t i = 0; i < unitCircle.size() - 1; ++i) {
+                    glm::vec3 p1 = center + unitCircle[i] * radius;
+                    glm::vec3 p2 = center + unitCircle[i+1] * radius;
+                    allLines.push_back(p1);
+                    allLines.push_back(p2);
+                }
+            };
+            addCircle(circleXY);
+            addCircle(circleXZ);
+            addCircle(circleYZ);
+        }
+        else if (type == COLLIDER_CAPSULE) {
+            float radius = obj->GetColliderRadius();
+            float height = obj->GetColliderHeight();
+            // Рисуем несколько окружностей вдоль оси Y
+            int numCircles = 8;
+            for (int i = 0; i <= numCircles; ++i) {
+                float t = (float)i / numCircles;
+                float y = -height * 0.5f + t * height;
+                glm::vec3 centerY = center + glm::vec3(0.0f, y, 0.0f);
+                for (size_t j = 0; j < circleXY.size() - 1; ++j) {
+                    glm::vec3 p1 = centerY + glm::vec3(circleXY[j].x, 0.0f, circleXY[j].y) * radius;
+                    glm::vec3 p2 = centerY + glm::vec3(circleXY[j+1].x, 0.0f, circleXY[j+1].y) * radius;
+                    allLines.push_back(p1);
+                    allLines.push_back(p2);
+                }
+            }
+            // Вертикальные линии
+            for (int k = 0; k < 4; ++k) {
+                float angle = 2.0f * 3.14159265359f * k / 4;
+                float x = cosf(angle) * radius;
+                float z = sinf(angle) * radius;
+                glm::vec3 bottom = center + glm::vec3(x, -height * 0.5f, z);
+                glm::vec3 top = center + glm::vec3(x, height * 0.5f, z);
+                allLines.push_back(bottom);
+                allLines.push_back(top);
+            }
+        }
+    }
+
+    if (allLines.empty()) return;
+
+    size_t vertexCount = allLines.size();
+    size_t bufferSize = vertexCount * sizeof(glm::vec3);
+
+    glBindBuffer(GL_ARRAY_BUFFER, colliderVBO);
+    if (bufferSize > vboCapacity) {
+        vboCapacity = bufferSize + 10000 * sizeof(glm::vec3);
+        glBufferData(GL_ARRAY_BUFFER, vboCapacity, nullptr, GL_DYNAMIC_DRAW);
+    }
+    glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, allLines.data());
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    shader.Use();
+    shader.SetMat4("model", glm::value_ptr(glm::mat4(1.0f)));
+    shader.SetMat4("view", glm::value_ptr(view));
+    shader.SetMat4("projection", glm::value_ptr(projection));
+    shader.SetVec3("color", 0.0f, 1.0f, 0.0f); // зелёный
+
+    glLineWidth(1.5f);
+    glBindVertexArray(colliderVAO);
+    glDrawArrays(GL_LINES, 0, (GLsizei)vertexCount);
+    glBindVertexArray(0);
+    glLineWidth(1.0f);
+}
