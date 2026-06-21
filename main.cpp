@@ -17,6 +17,7 @@
 #include "Audio/AudioEngine.h"
 #include <windows.h>
 #include <shellapi.h>
+#include "Script/ScriptManager.h"
 
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
@@ -184,6 +185,12 @@ if (!AudioEngine::Get().Initialize()) {
     }
     g_EditorUI.SetSkybox(&skybox);
 
+        // Инициализация Lua
+    if (!ScriptManager::GetInstance().Initialize(&g_SceneManager)) {
+        std::cerr << "Failed to initialize ScriptManager" << std::endl;
+        return -1;
+    }
+
     if (!initShaders()) return -1;
     if (!initShadowMap()) return -1;
 
@@ -228,7 +235,8 @@ unsigned int envCubemap = LoadCubemap(faces);
             initShadowMap();
         }
 
-        g_SceneManager.UpdatePhysics(deltaTime);
+        // Обновление игровых систем (физика + скрипты) только в Play Mode
+        g_SceneManager.UpdateGame(deltaTime);
         g_SceneManager.ResetStats();
 
         auto activeCamera = g_SceneManager.GetActiveCamera();
@@ -454,6 +462,7 @@ if (fogObj && fogObj->GetFogEnabled()) {
     g_EditorUI.Shutdown();
     AudioEngine::Get().Shutdown();
     PhysicsWorld::GetInstance().Shutdown();
+    ScriptManager::GetInstance().Shutdown();
     glfwDestroyWindow(window);
     glfwTerminate();
     std::cout << "Binax Engine shutdown successfully." << std::endl;
