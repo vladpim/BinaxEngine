@@ -77,6 +77,7 @@ public:
                          const GameObject* activeCamera) const;
     void RenderLightGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection) const;
     void RenderAudioGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection) const;
+    void RenderColliderGizmos(Shader& shader, const glm::mat4& view, const glm::mat4& projection) const;
     
 
 private:
