@@ -585,9 +585,10 @@ void EditorUI::DrawObjectTreeNode(std::shared_ptr<GameObject> obj, int& id) {
 }
 
 void EditorUI::DrawAudioSourceUI(std::shared_ptr<GameObject> selected) {
-    static char audioPathBuf[512] = "";
+    static char audioPathBuf[2048] = "";
     std::string currentPath = selected->GetAudioClipPath();
-    strcpy(audioPathBuf, currentPath.c_str());
+    strncpy(audioPathBuf, currentPath.c_str(), sizeof(audioPathBuf) - 1);
+    audioPathBuf[sizeof(audioPathBuf) - 1] = '\0';
     if (ImGui::InputText("Audio File", audioPathBuf, sizeof(audioPathBuf))) {
         selected->SetAudioClip(audioPathBuf);
     }
