@@ -950,8 +950,17 @@ void SceneManager::StartPlay() {
         m_InitialScales.push_back(obj->GetScale());
     }
 
+    // Включаем физику
     PhysicsWorld::GetInstance().SetSimulationActive(true);
-    StartAllScripts();
+
+    // Перезагружаем и запускаем все скрипты
+    for (const auto& obj : m_Objects) {
+        for (const auto& script : obj->GetScriptComponents()) {
+            script->Reload();   // <-- перечитываем файл с диска
+            script->Start();    // вызываем on_start
+        }
+    }
+
     std::cout << "[SceneManager] Play mode started." << std::endl;
 }
 
