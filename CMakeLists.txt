@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(BinaxEngine)
 set(CMAKE_CXX_STANDARD 17)
 
+# ========== ПУТИ ==========
 set(LIBS_DIR "${CMAKE_SOURCE_DIR}/libs")
 set(ASSETS_DIR "${CMAKE_SOURCE_DIR}/assets")
 set(SHADERS_DIR "${ASSETS_DIR}/shaders")
@@ -53,6 +54,14 @@ find_library(ASSIMP_LIBRARY
 
 # JSON (nlohmann)
 set(JSON_INCLUDE "${LIBS_DIR}/json")
+
+# ========== SOL2 & LUA ==========
+set(SOL2_DIR "${LIBS_DIR}/sol2")
+set(SOL2_INCLUDE "${SOL2_DIR}/include")
+
+set(LUA_DIR "${LIBS_DIR}/lua")
+set(LUA_INCLUDE "${LUA_DIR}/include")
+set(LUA_LIB "${LUA_DIR}/lua52.lib")   # у вас lua52.lib
 
 # ========== ПРОВЕРКИ ==========
 if(NOT EXISTS "${GLFW_INCLUDE}/GLFW/glfw3.h")
@@ -109,9 +118,11 @@ set(SOURCES
     Scene/SceneManager.cpp
     Scene/Camera.cpp
     Scene/Frustum.cpp
+    Scene/LuaScriptComponent.cpp
     Editor/EditorUI.cpp
     Physics/PhysicsWorld.cpp
     Audio/AudioEngine.cpp
+    Script/ScriptManager.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
@@ -142,6 +153,8 @@ target_include_directories(BinaxEngine PRIVATE
     ${BULLET_INCLUDE}
     ${JSON_INCLUDE}
     ${LIBS_DIR}                        # для miniaudio.h
+    ${SOL2_INCLUDE}
+    ${LUA_INCLUDE}
 )
 
 if(EXISTS "${ASSIMP_INCLUDE}")
@@ -169,6 +182,7 @@ target_link_libraries(BinaxEngine PRIVATE
     ${BULLET_LIBS}
     winmm.lib          # для miniaudio
     ole32.lib          # COM для miniaudio
+    ${LUA_LIB}
 )
 
 if(ASSIMP_LIBRARY)
@@ -206,6 +220,16 @@ if(WIN32)
         )
         message(STATUS "Assimp DLL will be copied")
     endif()
+
+set(LUA_DLL "${LIBS_DIR}/lua/lua52.dll")
+if(EXISTS "${LUA_DLL}")
+    add_custom_command(TARGET BinaxEngine POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${LUA_DLL}"
+        $<TARGET_FILE_DIR:BinaxEngine>
+    )
+    message(STATUS "Lua DLL will be copied")
+endif()
 
     if(EXISTS "${SHADERS_DIR}")
         add_custom_command(TARGET BinaxEngine POST_BUILD
