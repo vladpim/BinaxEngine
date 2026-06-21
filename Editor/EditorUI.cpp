@@ -1234,13 +1234,19 @@ void EditorUI::DrawSceneSettings() {
             ImGui::SliderFloat("Ambient Strength", &m_Settings.ambientStrength, 0.0f, 0.5f);
         }
 
-        // VSync с сохранением
         if (ImGui::Checkbox("VSync", &m_Settings.vsync)) {
             glfwSwapInterval(m_Settings.vsync ? 1 : 0);
         }
 
         ImGui::Separator();
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+
+        // Статистика рендеринга
+        if (m_SceneManager) {
+            auto& stats = m_SceneManager->GetStats();
+            ImGui::Text("Draw Calls: %d", stats.drawCalls);
+            ImGui::Text("Triangles: %d", stats.triangleCount);
+        }
     }
     ImGui::End();
 }
