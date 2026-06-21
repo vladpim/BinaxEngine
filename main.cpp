@@ -18,20 +18,6 @@
 #include <windows.h>
 #include <shellapi.h>
 
-#pragma comment(linker, "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
-
-bool IsRunningAsAdmin() {
-    BOOL isAdmin = FALSE;
-    PSID adminGroup = NULL;
-    SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
-    if (AllocateAndInitializeSid(&NtAuthority, 2, SECURITY_BUILTIN_DOMAIN_RID,
-                                 DOMAIN_ALIAS_RID_ADMINS, 0,0,0,0,0,0, &adminGroup)) {
-        CheckTokenMembership(NULL, adminGroup, &isAdmin);
-        FreeSid(adminGroup);
-    }
-    return isAdmin == TRUE;
-}
-
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 
@@ -151,24 +137,12 @@ unsigned int LoadCubemap(const std::vector<std::string>& faces) {
 }
 
 int main() {
-
-    if (!IsRunningAsAdmin()) {
-    MessageBoxA(NULL,
-        "It is recommended to run the editor with administrator rights.\n"
-        "This will reduce the load on the central processor.\n"
-        "Click OK to continue without admin rights, or restart as administrator.",
-        "Binax Engine",
-        MB_ICONINFORMATION | MB_OK);
-}
-
     std::cout << "=== Binax Engine Editor ===" << std::endl;
-
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SAMPLES, 4);
-
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Binax Engine Editor", NULL, NULL);
     if (!window) {
         std::cerr << "Failed to create GLFW window" << std::endl;
@@ -181,7 +155,6 @@ int main() {
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, key_callback);
-
     // Инициализация аудиодвижка
 if (!AudioEngine::Get().Initialize()) {
     std::cerr << "Warning: AudioEngine failed to initialize" << std::endl;
