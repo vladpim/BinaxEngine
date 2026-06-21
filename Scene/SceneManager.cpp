@@ -12,6 +12,7 @@
 #include <nlohmann/json.hpp>
 #include <GLFW/glfw3.h>
 #include "Editor/EditorUI.h"
+#include "Script/ScriptManager.h"
 
 extern EditorUI g_EditorUI;
 
@@ -105,6 +106,8 @@ void SceneManager::LoadScene(const std::string& filename) {
             m_Objects[i]->SetParent(m_Objects[parentIdx], true);
         }
     }
+
+    StartAllScripts();
 
     // Восстанавливаем активную камеру
     if (sceneJson.contains("activeCameraIndex")) {
@@ -915,4 +918,79 @@ void SceneManager::AddTriangles(int count) {
 
 const PerformanceStats& SceneManager::GetStats() const {
     return m_Stats;
+}
+
+void SceneManager::StartAllScripts() {
+    for (const auto& obj : m_Objects) {
+        for (const auto& script : obj->GetScriptComponents()) {
+            script->Start();
+        }
+    }
+}
+
+void SceneManager::UpdateScripts(float deltaTime) {
+    for (const auto& obj : m_Objects) {
+        for (const auto& script : obj->GetScriptComponents()) {
+            script->Update(deltaTime);
+        }
+    }
+}
+
+void SceneManager::StartPlay() {
+    if (m_IsPlaying) return;
+    m_IsPlaying = true;
+
+    // Сохраняем начальные трансформы
+    m_InitialPositions.clear();
+    m_InitialRotations.clear();
+    m_InitialScales.clear();
+    for (const auto& obj : m_Objects) {
+        m_InitialPositions.push_back(obj->GetPosition());
+        m_InitialRotations.push_back(obj->GetRotation());
+        m_InitialScales.push_back(obj->GetScale());
+    }
+
+    PhysicsWorld::GetInstance().SetSimulationActive(true);
+    StartAllScripts();
+    std::cout << "[SceneManager] Play mode started." << std::endl;
+}
+
+void SceneManager::StopPlay() {
+    if (!m_IsPlaying) return;
+    m_IsPlaying = false;
+
+    // Сбрасываем трансформы в исходное состояние
+    size_t i = 0;
+    for (auto& obj : m_Objects) {
+        if (i < m_InitialPositions.size()) {
+            obj->SetPosition(m_InitialPositions[i]);
+            obj->SetRotation(m_InitialRotations[i]);
+            obj->SetScale(m_InitialScales[i]);
+            // Если есть физическое тело – синхронизируем и обнуляем скорости
+            if (obj->HasRigidBody()) {
+                obj->SyncPhysicsToTransform();
+                obj->GetRigidBody()->setLinearVelocity(btVector3(0,0,0));
+                obj->GetRigidBody()->setAngularVelocity(btVector3(0,0,0));
+            }
+        }
+        ++i;
+    }
+
+    // Останавливаем скрипты
+    for (const auto& obj : m_Objects) {
+        for (const auto& script : obj->GetScriptComponents()) {
+            script->OnDestroy();
+            // Опционально: перезагрузить скрипт для следующего запуска
+            // script->Reload(); // если нужно перечитать файл
+        }
+    }
+
+    PhysicsWorld::GetInstance().SetSimulationActive(false);
+    std::cout << "[SceneManager] Play mode stopped." << std::endl;
+}
+
+void SceneManager::UpdateGame(float deltaTime) {
+    if (!m_IsPlaying) return;
+    UpdatePhysics(deltaTime);
+    UpdateScripts(deltaTime);
 }
