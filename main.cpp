@@ -174,6 +174,7 @@ if (!AudioEngine::Get().Initialize()) {
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     std::cout << "OpenGL: " << glGetString(GL_VERSION) << std::endl;
     std::cout << "GPU: " << glGetString(GL_RENDERER) << std::endl;
+    g_SceneManager.ResetStats();
 
     g_SceneManager.InitializePhysics();
     g_SceneManager.Initialize();
@@ -228,6 +229,7 @@ unsigned int envCubemap = LoadCubemap(faces);
         }
 
         g_SceneManager.UpdatePhysics(deltaTime);
+        g_SceneManager.ResetStats();
 
         auto activeCamera = g_SceneManager.GetActiveCamera();
         if (!activeCamera) {
