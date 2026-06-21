@@ -32,6 +32,7 @@ public:
     void SetWorldTransform(const glm::mat4& transform) { m_WorldTransform = transform; }
     glm::mat4 GetWorldTransform() const { return m_WorldTransform; }
     glm::mat4 m_WorldTransform = glm::mat4(1.0f);
+    int GetIndexCount() const { return static_cast<int>(m_IndexCount); }
 
 private:
     GLuint VAO = 0, VBO = 0, EBO = 0;
