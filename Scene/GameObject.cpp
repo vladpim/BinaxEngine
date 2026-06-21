@@ -15,7 +15,6 @@ GameObject::GameObject(const std::string& name)
 }
 
 GameObject::~GameObject() {
-    // 1. Открепляемся от родителя, если он ещё существует
     if (auto parent = m_Parent.lock()) {
         parent->RemoveChild(this);
     }
