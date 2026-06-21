@@ -428,6 +428,9 @@ g_SceneManager.RenderLightGizmos(gizmoShader, view, projection);
 // Аудио гизмо (дальность звука)
 gizmoShader.Use();
 g_SceneManager.RenderAudioGizmos(gizmoShader, view, projection);
+// Коллайдеры
+gizmoShader.Use();
+g_SceneManager.RenderColliderGizmos(gizmoShader, view, projection);
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
