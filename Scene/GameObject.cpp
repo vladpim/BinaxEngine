@@ -15,10 +15,12 @@ GameObject::GameObject(const std::string& name)
 }
 
 GameObject::~GameObject() {
+    // 1. Открепляемся от родителя, если он ещё существует
     if (auto parent = m_Parent.lock()) {
         parent->RemoveChild(this);
     }
     
+    // 2. Удаляем физическое тело, если оно есть
     if (m_rigidBody) {
         PhysicsWorld::GetInstance().RemoveRigidBody(m_rigidBody);
         delete m_rigidBody->getMotionState();
@@ -214,30 +216,46 @@ void GameObject::RemoveRigidBody() {
 
 void GameObject::SetColliderType(ColliderType type) {
     if (!CanHavePhysics()) {
-    std::cerr << "[Physics] Cannot set collider on '" << m_Name << "' because it has parent or children!" << std::endl;
-    return;
-}
+        std::cerr << "[Physics] Cannot set collider on '" << m_Name << "' because it has parent or children!" << std::endl;
+        return;
+    }
     if (m_collisionShape) delete m_collisionShape;
     m_colliderType = type;
-    glm::vec3 scale = GetScale();
-    std::cout << "SetColliderType: " << type << " scale=(" << scale.x << "," << scale.y << "," << scale.z << ")" << std::endl;
-    
+
+    // Создаем базовую форму в зависимости от типа
+    btCollisionShape* childShape = nullptr;
     switch (type) {
         case COLLIDER_BOX:
-            m_collisionShape = new btBoxShape(btVector3(scale.x * 0.5f, scale.y * 0.5f, scale.z * 0.5f));
+            childShape = new btBoxShape(btVector3(m_ColliderSize.x, m_ColliderSize.y, m_ColliderSize.z));
             break;
         case COLLIDER_SPHERE:
-            m_collisionShape = new btSphereShape(scale.x * 0.5f);
+            childShape = new btSphereShape(m_ColliderSize.x);
             break;
         case COLLIDER_CAPSULE:
-            m_collisionShape = new btCapsuleShape(scale.x * 0.5f, scale.y - scale.x);
+            childShape = new btCapsuleShape(m_ColliderSize.x, m_ColliderSize.y);
             break;
         default:
-            m_collisionShape = nullptr;
+            childShape = nullptr;
             break;
     }
-    
-    // Обновляем физическое тело (создаём/пересоздаём)
+
+    // Если есть смещение, оборачиваем в составную форму
+    if (childShape) {
+        if (glm::length(m_ColliderOffset) > 0.001f) {
+            btCompoundShape* compound = new btCompoundShape();
+            btTransform offsetTransform;
+            offsetTransform.setIdentity();
+            offsetTransform.setOrigin(btVector3(m_ColliderOffset.x, m_ColliderOffset.y, m_ColliderOffset.z));
+            compound->addChildShape(offsetTransform, childShape);
+            m_collisionShape = compound;
+        } else {
+            m_collisionShape = childShape;
+        }
+    } else {
+        m_collisionShape = nullptr;
+    }
+
+    // Обновляем физическое тело
     UpdatePhysicsBody();
 }
 
@@ -752,6 +770,11 @@ nlohmann::json GameObject::ToJson() const {
         j["fogLinearEnd"] = m_FogLinearEnd;
     }
 
+        // Коллайдер
+    j["colliderOffset"] = { m_ColliderOffset.x, m_ColliderOffset.y, m_ColliderOffset.z };
+    j["colliderSize"] = { m_ColliderSize.x, m_ColliderSize.y, m_ColliderSize.z };
+    j["showColliderGizmo"] = m_ShowColliderGizmo;
+
     return j;
 }
 
@@ -891,6 +914,17 @@ bool GameObject::FromJson(const nlohmann::json& j) {
             m_FogLinearEnd = j.value("fogLinearEnd", 50.0f);
         }
 
+                // Коллайдер
+        if (j.contains("colliderOffset")) {
+            auto off = j["colliderOffset"];
+            m_ColliderOffset = glm::vec3(off[0], off[1], off[2]);
+        }
+        if (j.contains("colliderSize")) {
+            auto sz = j["colliderSize"];
+            m_ColliderSize = glm::vec3(sz[0], sz[1], sz[2]);
+        }
+        m_ShowColliderGizmo = j.value("showColliderGizmo", true);
+
         return true;
     } catch (const std::exception& e) {
         std::cerr << "Error deserializing GameObject: " << e.what() << std::endl;
@@ -926,4 +960,36 @@ void GameObject::SetMeshFromModel(const std::string& path) {
         std::cerr << "Failed to load model: " << path << std::endl;
         m_Mesh.reset();
     }
+}
+
+// ========== COLLIDER PARAMETERS IMPLEMENTATION ==========
+void GameObject::SetColliderOffset(const glm::vec3& offset) {
+    m_ColliderOffset = offset;
+    RecreateCollider();
+}
+
+void GameObject::SetColliderHalfExtents(const glm::vec3& halfExtents) {
+    if (m_colliderType == COLLIDER_BOX) {
+        m_ColliderSize = halfExtents;
+        RecreateCollider();
+    }
+}
+
+void GameObject::SetColliderRadius(float radius) {
+    if (m_colliderType == COLLIDER_SPHERE || m_colliderType == COLLIDER_CAPSULE) {
+        m_ColliderSize.x = radius;
+        RecreateCollider();
+    }
+}
+
+void GameObject::SetColliderHeight(float height) {
+    if (m_colliderType == COLLIDER_CAPSULE) {
+        m_ColliderSize.y = height;
+        RecreateCollider();
+    }
+}
+
+void GameObject::RecreateCollider() {
+    if (m_colliderType == COLLIDER_NONE) return;
+    SetColliderType(m_colliderType); // пересоздаст форму и тело
 }
