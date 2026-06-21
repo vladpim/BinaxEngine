@@ -363,15 +363,13 @@ void SceneManager::UpdatePhysics(float deltaTime) {
     for (auto& obj : m_Objects) {
         if (obj->HasRigidBody()) {
             obj->SyncTransformToPhysics();
-            // отладочный вывод
-            std::cout << "Syncing " << obj->GetName() << std::endl;
-            // Добавь обновление аудиопозиции после синхронизации трансформации
-    if (!obj->GetAudioClipPath().empty() && obj->GetAudioSpatial()) {
-        obj->UpdateAudioPosition(obj->GetWorldPosition());
-    }
-}
+            // Обновляем аудиопозицию после синхронизации трансформации
+            if (!obj->GetAudioClipPath().empty() && obj->GetAudioSpatial()) {
+                obj->UpdateAudioPosition(obj->GetWorldPosition());
+            }
         }
     }
+}
 
 void SceneManager::SetPhysicsActive(bool active) {
     std::cout << "SceneManager::SetPhysicsActive(" << active << ")" << std::endl;
