@@ -221,6 +221,19 @@ unsigned int envCubemap = LoadCubemap(faces);
         lastFrame = currentFrame;
 
         processInput(window);
+                // ===== Управление захватом мыши через ПКМ в окне Scene View =====
+        static bool rightMousePressed = false;
+        bool rightDown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+        if (rightDown && !rightMousePressed && g_EditorUI.IsViewportHovered() && !g_EditorUI.IsGizmoActive()) {
+            mouseCaptured = true;
+            firstMouse = true;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            rightMousePressed = true;
+        } else if (!rightDown && rightMousePressed) {
+            mouseCaptured = false;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            rightMousePressed = false;
+        }
         g_EditorUI.HandleShortcuts();
 
         auto& settings = g_EditorUI.GetSettings();
@@ -474,15 +487,24 @@ void processInput(GLFWwindow* window) {
     if (!mouseCaptured) return;
     if (g_EditorUI.IsGizmoActive()) return;
 
+    // Базовая скорость
     float speed = 5.0f * deltaTime;
+    // Ускорение по Shift (в 2 раза)
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+        speed *= 2.0f;
+    }
+
     float forward = 0.0f, right = 0.0f, up = 0.0f;
 
+    // WASD – движение в плоскости
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) forward -= 1.0f;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) forward += 1.0f;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) right += 1.0f;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) right -= 1.0f;
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) up += 1.0f;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) up -= 1.0f;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) right += 1.0f;
+
+    // Q – опускание, E – поднимание
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) up -= 1.0f;
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) up += 1.0f;
 
     g_SceneManager.MoveActiveCamera(forward, right, up, speed);
 }
@@ -493,9 +515,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 
     static float lastX = SCR_WIDTH / 2.0f;
     static float lastY = SCR_HEIGHT / 2.0f;
-    static bool firstMouse = true;
 
-    if (firstMouse) {
+    if (firstMouse) {   // глобальная переменная
         lastX = (float)xpos;
         lastY = (float)ypos;
         firstMouse = false;
@@ -528,9 +549,11 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-        mouseCaptured = false;
-        firstMouse = true;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        if (mouseCaptured) {
+            mouseCaptured = false;
+            firstMouse = true;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
     }
     if (key == GLFW_KEY_DELETE && action == GLFW_PRESS) {
         auto selected = g_SceneManager.GetSelectedObject();
