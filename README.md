@@ -126,7 +126,7 @@
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/BinaxEngine.git
+git clone https://github.com/VladPim/BinaxEngine.git
 cd BinaxEngine
 ```
 
@@ -148,8 +148,6 @@ External/
 ├── sol2/
 └── stb/
 ```
-
-**Important:** The `External/` folder is **not** included in the repository. You need to download and place the libraries manually, or use the pre‑built package (if available).
 
 ### 3. Configure with CMake
 
