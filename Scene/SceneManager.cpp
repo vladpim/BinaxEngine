@@ -1002,4 +1002,13 @@ void SceneManager::UpdateGame(float deltaTime) {
     if (!m_IsPlaying) return;
     UpdatePhysics(deltaTime);
     UpdateScripts(deltaTime);
+    UpdateAnimations(deltaTime);
+}
+
+void SceneManager::UpdateAnimations(float deltaTime) {
+    for (const auto& obj : m_Objects) {
+        for (const auto& anim : obj->GetAnimationComponents()) {
+            anim->Update(deltaTime, obj.get());
+        }
+    }
 }
