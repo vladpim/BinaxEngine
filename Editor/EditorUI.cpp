@@ -315,21 +315,6 @@ if (ImGui::BeginMenu("View")) {
         ImGui::SameLine(ImGui::GetWindowWidth() - 350);
         DrawGizmoToolbar();
         ImGui::SameLine();
-
-        if (mouseCaptured) {
-            if (ImGui::Button("Release Mouse (ESC)")) {
-                mouseCaptured = false;
-                firstMouse = true;
-                glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            }
-        } else {
-            if (ImGui::Button("Capture Mouse")) {
-                mouseCaptured = true;
-                firstMouse = true;
-                glfwSetInputMode(m_Window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            }
-        }
-
         ImGui::EndMainMenuBar();
     }
 }
@@ -370,6 +355,25 @@ void EditorUI::DrawGizmoToolbar() {
     if (m_CurrentGizmoOperation == ImGuizmo::SCALE) {
         ImGui::PopStyleColor();
     }
+                ImGui::SameLine();
+            if (m_IsRecording) {
+                if (ImGui::Button("Stop Record", ImVec2(90, 25))) {
+                    StopRecording();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Add Key", ImVec2(70, 25))) {
+                    AddKeyframe();
+                }
+            } else {
+                if (ImGui::Button("Record", ImVec2(70, 25))) {
+                    auto selected = GetSelectedObject();
+                    if (selected) {
+                        StartRecording(selected);
+                    } else {
+                        // сообщение
+                    }
+                }
+            }
     ImGui::SameLine();
 
     const char* modeText = (m_CurrentGizmoMode == ImGuizmo::WORLD) ? "World" : "Local";
@@ -895,6 +899,11 @@ void EditorUI::DrawInspector() {
                                         ImGui::OpenPopup("physics_error");
                                     }
                                 }
+                                                                if (ImGui::MenuItem("Animation")) {
+                                    auto comp = std::make_shared<AnimationComponent>();
+                                    selected->AddAnimationComponent(comp);
+                                    // Можно сразу предложить загрузить файл или создать пустую
+                                }
                                 if (ImGui::MenuItem("Audio Source")) {
                                     selected->EnableAudioSource();
                                 }
@@ -975,6 +984,58 @@ void EditorUI::DrawInspector() {
                                 ImGui::PopID();
                             }
                         }
+
+                                            // ===== ANIMATION COMPONENTS =====
+                        auto& anims = selected->GetAnimationComponents();
+                        if (!anims.empty()) {
+                            for (size_t i = 0; i < anims.size(); ++i) {
+                                ImGui::PushID(static_cast<int>(i + 1000)); // уникальный ID
+                                auto& comp = anims[i];
+                                std::string label = "Animation: " + (comp->GetClip() ? comp->GetClip()->GetName() : "None");
+                                if (ImGui::CollapsingHeader(label.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                                    // Показываем путь к файлу
+                                    ImGui::Text("Clip: %s", comp->GetClipPath().c_str());
+                                    ImGui::SameLine();
+                                    if (ImGui::Button("Load...")) {
+                                        std::string path = OpenFileDialog("*.bxanim");
+                                        if (!path.empty()) {
+                                            comp->LoadFromFile(path);
+                                        }
+                                    }
+                                    // Кнопки управления
+                                    if (ImGui::Button("Play")) comp->Play();
+                                    ImGui::SameLine();
+                                    if (ImGui::Button("Stop")) comp->Stop();
+                                    ImGui::SameLine();
+                                    if (ImGui::Button("Pause")) comp->Pause();
+                                    // Слайдер времени
+                                    float time = comp->GetTime();
+                                    float duration = comp->GetClip() ? comp->GetClip()->GetDuration() : 1.0f;
+                                    if (ImGui::SliderFloat("Time", &time, 0.0f, duration)) {
+                                        comp->SetTime(time);
+                                    }
+                                    // Скорость
+                                    float speed = comp->GetSpeed();
+                                    if (ImGui::DragFloat("Speed", &speed, 0.05f, 0.0f, 5.0f)) {
+                                        comp->SetSpeed(speed);
+                                    }
+                                    // Loop
+                                    bool loop = comp->IsLooping();
+                                    if (ImGui::Checkbox("Loop", &loop)) {
+                                        comp->SetLooping(loop);
+                                    }
+                                    // Кнопка удалить компонент
+                                    if (ImGui::Button("Remove Component")) {
+                                        selected->RemoveAnimationComponent(i);
+                                        ImGui::PopID();
+                                        break;
+                                    }
+                                }
+                                ImGui::PopID();
+                            }
+                        }
+                        // Кнопка добавления анимации (в попап Add Component)
+                        // (она будет добавлена ниже)
 
                         // ---- Audio Source (если включён) ----
                         if (selected->IsAudioSourceEnabled()) {
@@ -1709,4 +1770,52 @@ bool EditorUI::SettingsFromJson(const nlohmann::json& j) {
         std::cerr << "Failed to parse editor settings from scene" << std::endl;
         return false;
     }
+}
+
+void EditorUI::StartRecording(std::shared_ptr<GameObject> target) {
+    if (!target) return;
+    m_RecordingTarget = target;
+    // Создаём новый клип или используем существующий
+    auto comps = target->GetAnimationComponents();
+    if (!comps.empty()) {
+        m_RecordingComponent = comps[0];
+    } else {
+        m_RecordingComponent = std::make_shared<AnimationComponent>();
+        target->AddAnimationComponent(m_RecordingComponent);
+    }
+    m_RecordingClip = std::make_shared<AnimationClip>("Recorded");
+    m_RecordingComponent->SetClip(m_RecordingClip);
+    m_RecordingTime = 0.0f;
+    m_IsRecording = true;
+    // Добавляем начальный ключ
+    AddKeyframe();
+}
+
+void EditorUI::StopRecording() {
+    if (!m_IsRecording) return;
+    // Сохраняем в файл
+    if (m_RecordingClip && !m_RecordingClip->GetKeyframes().empty()) {
+        std::string path = SaveFileDialog("Animation Files\0*.bxanim\0", "bxanim");
+        if (!path.empty()) {
+            m_RecordingClip->SaveToFile(path);
+            m_RecordingComponent->SetClip(m_RecordingClip);
+            m_RecordingComponent->SetTime(0.0f);
+        }
+    }
+    m_IsRecording = false;
+    m_RecordingTarget.reset();
+    m_RecordingComponent.reset();
+    m_RecordingClip.reset();
+}
+
+void EditorUI::AddKeyframe() {
+    if (!m_IsRecording || !m_RecordingTarget || !m_RecordingClip) return;
+    AnimationKeyframe key;
+    key.time = m_RecordingTime;
+    key.position = m_RecordingTarget->GetPosition();
+    key.rotation = glm::quat(glm::radians(m_RecordingTarget->GetRotation()));
+    key.scale = m_RecordingTarget->GetScale();
+    m_RecordingClip->AddKeyframe(key);
+    // Увеличиваем время для следующего ключа (шаг 0.5 секунды)
+    m_RecordingTime += 0.5f;
 }
