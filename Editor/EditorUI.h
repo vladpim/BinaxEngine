@@ -7,6 +7,8 @@
 #include "ImGuizmo.h"
 #include "EditorTheme.h"
 #include <nlohmann/json.hpp>
+#include "Animation/AnimationComponent.h"
+#include "Animation/AnimationClip.h"
 
 class SceneManager;
 class GameObject;
@@ -68,6 +70,10 @@ public:
     bool SettingsFromJson(const nlohmann::json& j);
     void TogglePlayMode();
     bool IsPlayMode() const { return m_IsPlayMode; }
+        void StartRecording(std::shared_ptr<GameObject> target);
+    void StopRecording();
+    void AddKeyframe();
+    bool IsRecording() const { return m_IsRecording; }
 
 private:
     void SetupImGuiStyle();
@@ -109,6 +115,11 @@ private:
     ImGuizmo::MODE m_CurrentGizmoMode = ImGuizmo::WORLD;
     EditorTheme m_Theme;
     bool m_IsPlayMode = false;
+        bool m_IsRecording = false;
+    std::shared_ptr<GameObject> m_RecordingTarget;
+    std::shared_ptr<AnimationComponent> m_RecordingComponent;
+    float m_RecordingTime = 0.0f;
+    std::shared_ptr<AnimationClip> m_RecordingClip;
     Skybox* m_Skybox = nullptr;
     std::string m_SkyboxPaths[6] = {
     "resources/embedded_assets/skybox/right.png",
