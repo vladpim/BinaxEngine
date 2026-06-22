@@ -1,0 +1,91 @@
+================================================================================
+                    BINAX ENGINE – LICENSES FOR THIRD-PARTY LIBRARIES
+================================================================================
+This file contains information about licenses for libraries used in the project.
+All libraries are allowed to be used in commercial projects, unless otherwise specified.
+The detailed terms of each license can be found at the links provided.
+
+================================================================================
+1. ASSIMP (Open Asset Import Library)
+   - License: BSD 3-Clause License
+- Link: https://github.com/assimp/assimp/blob/master/LICENSE
+- In short: allows use, modification, distribution provided
+     saving the copyright notice.
+
+2. BULLET PHYSICS
+- License: zlib/libpng License
+- Link: https://github.com/bulletphysics/bullet3/blob/master/LICENSE.txt
+- In short: allows use without restrictions, including in commercial
+projects. It is forbidden to impersonate the author of the library.
+
+3. GLFW
+License: zlib/libpng License
+- Link: https://www.glfw.org/license.html
+   - Briefly: allows use, modification, distribution; required
+     save the copyright notice in the source code.
+
+4. GLEW (OpenGL Extension Wrangler Library)
+- License: BSD 3-Clause License (or MIT, depending on the version)
+- Link: https://github.com/nigels-com/glew/blob/master/LICENSE.txt
+- Briefly: allows use, modification, distribution provided
+     saving the copyright notice.
+
+5. GLM (OpenGL Mathematics)
+- License: MIT License
+- Link: https://github.com/g-truc/glm/blob/master/copying.txt
+   - Briefly: allows use, modification, distribution; required
+     save the copyright notice.
+
+6. IMGUI (Dear ImGui)
+- License: MIT License
+- Link: https://github.com/ocornut/imgui/blob/master/LICENSE.txt
+- Briefly: allows use, modification, distribution; required
+     save the copyright notice.
+
+7. IMGUIZMO (ImGuizmo)
+- License: MIT License
+- Link: https://github.com/CedricGuillemet/ImGuizmo/blob/master/LICENSE
+- Briefly: allows use, modification, distribution; required
+     save the copyright notice.
+
+8. LUA
+License: MIT License
+- Link: https://www.lua.org/license.html
+   - Briefly: allows use, modification, distribution; required
+     save the copyright notice.
+
+9. MINIAUDIO
+- License: MIT License (or Public Domain, depending on the build)
+- Link: https://github.com/mackron/miniaudio/blob/master/LICENSE
+- Briefly: allows use, modification, distribution; required
+     save the copyright notice.
+
+10. NLOHMANN/JSON (JSON for Modern C++)
+    - License: MIT License
+- Link: https://github.com/nlohmann/json/blob/develop/LICENSE .MIT
+- In short: allows use, modification, distribution; required
+      save the copyright notice.
+
+11. SOL2 (C++ bindings for Lua)
+    - License: MIT License
+- Link: https://github.com/ThePhD/sol2/blob/develop/LICENSE
+- Briefly: allows use, modification, distribution; required
+      save the copyright notice.
+
+12. STB (stb_image.h)
+- License: Public Domain / MIT (usually Public Domain)
+    - Link: https://github.com/nothings/stb/blob/master/LICENSE
+- Briefly: allows use without restrictions (Public Domain) or under
+      licensed by MIT.
+
+================================================================================
+note:
+- OpenGL is an open standard and does not require licensing.
+- All listed libraries can be used in closed commercial
+projects without disclosure of the source code, unless otherwise specified.
+- For a complete understanding of the license terms, it is recommended to read the full
+texts at the links.
+
+================================================================================
+END OF FILE
+================================================================================
