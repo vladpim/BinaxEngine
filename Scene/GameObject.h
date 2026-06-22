@@ -9,6 +9,8 @@
 #include <glm/gtc/quaternion.hpp>
 #include "Script/ScriptManager.h"
 #include "LuaScriptComponent.h"
+#include "Animation/AnimationComponent.h"
+#include "Animation/AnimationClip.h"
 
 class btRigidBody;
 class btCollisionShape;
@@ -189,6 +191,11 @@ public:
     void AddScriptComponent(std::shared_ptr<LuaScriptComponent> script);
     const std::vector<std::shared_ptr<LuaScriptComponent>>& GetScriptComponents() const { return m_ScriptComponents; }
     void RemoveScriptComponent(size_t index);
+        // Animation Component
+    void AddAnimationComponent(std::shared_ptr<AnimationComponent> anim);
+    void RemoveAnimationComponent(size_t index);
+    std::vector<std::shared_ptr<AnimationComponent>>& GetAnimationComponents() { return m_AnimationComponents; }
+    const std::vector<std::shared_ptr<AnimationComponent>>& GetAnimationComponents() const { return m_AnimationComponents; }
 
 private:
     std::string m_Name;
@@ -259,4 +266,5 @@ private:
     glm::vec3 m_ColliderSize = glm::vec3(0.5f); // интерпретация зависит от типа
     bool m_ShowColliderGizmo = true;
     std::vector<std::shared_ptr<LuaScriptComponent>> m_ScriptComponents;
+    std::vector<std::shared_ptr<AnimationComponent>> m_AnimationComponents;
 };
