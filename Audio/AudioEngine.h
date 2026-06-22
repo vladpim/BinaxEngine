@@ -2,7 +2,7 @@
 #include <string>
 #include <unordered_map>
 #include <glm/glm.hpp>
-#include "../libs/miniaudio.h"   // или путь, где лежит файл
+#include "External/miniaudio.h"
 
 class AudioEngine {
 public:
