@@ -10,6 +10,18 @@
 #include "Graphics/Primitives.h"
 #include "Graphics/Model.h"
 #include "Script/ScriptManager.h"
+#include "Animation/AnimationComponent.h"
+#include "Animation/AnimationClip.h"
+
+void GameObject::AddAnimationComponent(std::shared_ptr<AnimationComponent> anim) {
+    m_AnimationComponents.push_back(anim);
+}
+
+void GameObject::RemoveAnimationComponent(size_t index) {
+    if (index < m_AnimationComponents.size()) {
+        m_AnimationComponents.erase(m_AnimationComponents.begin() + index);
+    }
+}
 
 GameObject::GameObject(const std::string& name)
     : m_Name(name) {
@@ -785,6 +797,15 @@ nlohmann::json GameObject::ToJson() const {
         j["luaScripts"] = scriptsJson;
     }
 
+        // Animation Components
+    if (!m_AnimationComponents.empty()) {
+        nlohmann::json animsJson = nlohmann::json::array();
+        for (const auto& comp : m_AnimationComponents) {
+            animsJson.push_back(comp->ToJson());
+        }
+        j["animationComponents"] = animsJson;
+    }
+
     return j;
 }
 
@@ -944,6 +965,16 @@ bool GameObject::FromJson(const nlohmann::json& j) {
                     m_ScriptComponents.push_back(script);
                 } else {
                     std::cerr << "[GameObject] Failed to load script: " << scriptPath << std::endl;
+                }
+            }
+        }
+
+                // Animation Components
+        if (j.contains("animationComponents") && j["animationComponents"].is_array()) {
+            for (const auto& item : j["animationComponents"]) {
+                auto comp = std::make_shared<AnimationComponent>();
+                if (comp->FromJson(item)) {
+                    m_AnimationComponents.push_back(comp);
                 }
             }
         }
