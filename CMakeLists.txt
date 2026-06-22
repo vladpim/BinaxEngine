@@ -119,10 +119,13 @@ set(SOURCES
     Scene/Camera.cpp
     Scene/Frustum.cpp
     Scene/LuaScriptComponent.cpp
+    Script/ScriptManager.cpp
+    Animation/AnimationKeyframe.cpp
+    Animation/AnimationClip.cpp
+    Animation/AnimationComponent.cpp
     Editor/EditorUI.cpp
     Physics/PhysicsWorld.cpp
     Audio/AudioEngine.cpp
-    Script/ScriptManager.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
