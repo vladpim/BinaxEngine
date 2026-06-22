@@ -85,6 +85,7 @@ public:
     void StopPlay();
     bool IsPlaying() const { return m_IsPlaying; }
     void UpdateGame(float deltaTime);
+    void UpdateAnimations(float deltaTime);
 
 private:
     bool m_Initialized;
