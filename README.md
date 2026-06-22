@@ -236,9 +236,3 @@ BinaxEngine is released under the **MIT License**. See [LICENSE](LICENSE) for de
 - Undo/Redo (Ctrl+Z / Ctrl+Y)
 
 ```
-
----
-
----
-
-Если нужны дополнительные правки или описание других фич, скажите.
