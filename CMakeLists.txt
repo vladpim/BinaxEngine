@@ -3,7 +3,7 @@ project(BinaxEngine)
 set(CMAKE_CXX_STANDARD 17)
 
 # ========== ПУТИ ==========
-set(LIBS_DIR "${CMAKE_SOURCE_DIR}/libs")
+set(LIBS_DIR "${CMAKE_SOURCE_DIR}/External")
 set(ASSETS_DIR "${CMAKE_SOURCE_DIR}/assets")
 set(SHADERS_DIR "${ASSETS_DIR}/shaders")
 
