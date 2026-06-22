@@ -1,0 +1,79 @@
+================================================================================
+                         BINAX ENGINE – CREDITS
+================================================================================
+
+Binax Engine was developed using many open-source libraries.
+We express our gratitude to all developers and communities whose work
+made this project possible.
+
+================================================================================
+AUTHOR
+================================================================================
+- VladPim – engine, editor, and architecture development.
+
+================================================================================
+THIRD-PARTY LIBRARIES
+================================================================================
+
+Below are the main libraries used in the project.
+Full license texts are available in the file ThirdPartyLicenses.txt.
+
+- ASSIMP (Open Asset Import Library) – 3D model loading.
+  Authors: Kim Kulling, Alexander Gessler, and others.
+  License: BSD 3-Clause.
+
+- BULLET PHYSICS – physics engine.
+  Author: Erwin Coumans and others.
+  License: zlib.
+
+- GLFW – window creation and input handling.
+  Authors: Marcus Geelnard, Camilla Löwy and others.
+  License: zlib/libpng.
+
+- GLEW – OpenGL extensions.
+  Authors: Milan Ikits, Marcelo Magallon and others.
+  License: BSD 3-Clause / MIT.
+
+- GLM (OpenGL Mathematics) – mathematics library.
+  Author: Christophe Riccio (g-truc).
+  License: MIT.
+
+- IMGUI (Dear ImGui) – editor graphical user interface.
+  Author: Omar Cornut.
+  License: MIT.
+
+- IMGUIZMO (ImGuizmo) – transformation gizmos in the editor.
+  Author: Cedric Guillemet.
+  License: MIT.
+
+- LUA – scripting language.
+  Author: Roberto Ierusalimschy and others.
+  License: MIT.
+
+- MINIAUDIO – audio engine.
+  Author: David Reid.
+  License: MIT / Public Domain.
+
+- NLOHMANN/JSON – JSON handling.
+  Author: Niels Lohmann.
+  License: MIT.
+
+- SOL2 – Lua and C++ integration.
+  Author: Nathan Reed (ThePhD).
+  License: MIT.
+
+- STB (stb_image.h) – texture loading.
+  Author: Sean Barrett.
+  License: Public Domain / MIT.
+
+================================================================================
+SPECIAL THANKS
+================================================================================
+
+- To the OpenGL community for the standard and documentation.
+- To the developers of GLFW, ImGui, Bullet, Assimp and all others
+  for high-quality open-source tools.
+
+================================================================================
+END OF FILE
+================================================================================
