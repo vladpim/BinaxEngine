@@ -1,0 +1,181 @@
+Date: 2026-06-23
+Binax Engine is a game engine with an integrated editor developed in C++
+using OpenGL, GLFW, ImGui, Bullet Physics, Lua (sol2) and other libraries.
+The main implemented features are listed below.
+
+================================================================================
+1. RENDERING AND GRAPHICS
+================================================================================
+- OpenGL 3.3 Core Profile, multisampling (MSAA) support.
+- PBR (Physically Based Rendering) with materials using:
+  - Diffuse maps (diffuse/albedo)
+  - Normal maps
+- Roughness
+maps - metallic
+maps - ambient occlusion maps
+- Gamma correction (pow(1/2.2)) for linear workspace.
+- Reflections of the environment (cube map) with mipmap filtering.
+- Shadows: shadow maps, PCF (4 or 9 samples), adjustable parameters (map size,
+offset, softness, range).
+- Fog: linear, exponential, exponential square, adjustable
+  color, density, initial/final distance.
+- Volumetric cone light beams for Spot Light with adjustable intensity,
+  softness and density.
+- Grid for visual orientation in the scene.
+- Gizmo visualization: frostum, light sources (point/spot), audio range,
+  colliders (box, sphere, capsule).
+- Transparency support: alpha blending and alpha test (pixel clipping) with
+a separate setting for shadows.
+
+================================================================================
+2. SCENE AND OBJECTS
+================================================================================
+- Hierarchical system of objects (parent-child) with inheritance of transformations.
+- Transformations: position, rotation (Euler angles), scale.
+- Cameras: perspective projection, customizable FOV, near/far planes.
+- Frustum culling for rendering optimization.
+- AABB (bounding box) support for clipping.
+- Import of 3D models via Assimp (formats: .obj, .fbx, .dae, .blend, .3ds, .stl)
+with automatic creation of meshes and materials.
+
+================================================================================
+3. PHYSICS (BULLET PHYSICS)
+================================================================================
+- Integration of Bullet Physics (dynamics of solids).
+- Colliders: Box, Sphere, Capsule.
+- RigidBody: dynamic (with mass) and static (mass = 0).
+- Material settings: friction, elasticity, rolling friction.
+- Damping: linear and angular.
+- Simulation control: turn on/off, reset objects to their initial state.
+
+================================================================================
+4. AUDIO (MINIAUDIO)
+================================================================================
+- Support for 3D sound with spatial positioning (Attenuation by distance).
+- 2D audio support (without spatial positioning).
+- Download audio files: .wav, .mp3, .flac, .ogg.
+- Playback control: Play, Stop, Loop, Volume.
+- Minimum and maximum distance for 3D sound.
+- Updating the listener's position (linked to the active camera).
+
+================================================================================
+5. SCRIPTS (LUA + SOL2)
+================================================================================
+- Built-in Lua scripting language (via sol2).
+- A JavaScript component that is attached to objects via the editor.
+- Lifecycle functions: on_start(), on_update(dt), on_destroy().
+- Access from Lua:
+- self:GetName(), self:SetName()
+  - self:GetPosition(), self:SetPosition(), self:GetWorldPosition()
+  - self:SetVisible(), self:isVisible()
+- FindGameObject(name) for searching objects by name.
+  - printToConsole(msg) for output to the console.
+- Hot reload of scripts without restarting the engine (when entering Play Mode).
+
+================================================================================
+6. ANIMATIONS (KEYFRAME SYSTEM)
+================================================================================
+- Own format .bxanim (JSON) for storing animations.
+- Transformation keyframes (position, rotation, scale) with interpolation
+  (linear for position/scale, slerp for rotation).
+- The Animation component, which is added via the Add Component.
+- Controls: Play, Stop, Pause, Loop, Speed.
+- Recording mode in the editor: selecting an object, adding keyframes
+manually (Add Key) with automatic time steps, saving to .bxanim.
+- Serialization of animations in a scene (file paths are saved in .bxlvl).
+
+================================================================================
+7. THE EDITOR (IMGUI + IMGUIZMO)
+================================================================================
+- Windows: Hierarchy, Inspector, Scene View, Scene Settings, Content Browser,
+  Theme Editor, Skybox Settings, Shadows Settings.
+- Hierarchy of objects: tree display, dragging (parent-child),
+  context menu (Duplicate, Delete, Make Root, Make child of selected).
+- Inspector: editing all properties of an object (Transform, Appearance, Light,
+  Fog, Material, Mesh, Rendering, Components).
+- Gizmo: Translate (W), Rotate (E), Scale (R), Switch World/Local (X),
+Snap to Grid (Snap).
+- Camera control in the editor: right-click capture on the Scene View window,
+  WASD movement, Q/E ascent/Descent, Shift acceleration.
+- Buttons: Play/Stop (switch to game mode), Record (record animation).
+- Settings: grid, wireframe mode, gizmo display, VSync, background, intensity
+  lighting, shadow parameters.
+- Save and load scenes in the format.bxlvl (JSON).
+- Saving editor settings (skin, window positions, parameters).
+
+================================================================================
+8. COMPONENT SYSTEM
+================================================================================
+A GameObject can contain the following components (added via Add Component):
+- Mesh: primitives (cube, sphere, cylinder, cone, pyramid, plane) or a model.
+- Material: diffuse, normal, roughness, metallicity, AO, emission.
+- Light: directional, point, spot (with color, intensity, range settings,
+  the angle for the spot).
+- Camera: FOV, near/far, frustum culling.
+- RigidBody: a physical body (mass, collider).
+- AudioSource: Audio file, 3D/2D, volume, range.
+- LuaScript: path to the .lua file, hot reboot.
+- Animation: the path to .bxanim, playback control.
+
+================================================================================
+9. PLAY/EDIT MODE
+================================================================================
+- Switch between editing and game modes via the Play/Stop button.
+- When entering Play Mode:
+  - The initial transformations of all objects are saved.
+  - Physics simulation is enabled.
+  - All Lua scripts are rebooted and run.
+  - Animation components are activated.
+  - The editing tools (gizmo, grid, selection of objects) are disabled.
+- When exiting Play Mode:
+  - Scripts are stopped (on_destroy call).
+  - Physics is turned off.
+  - The transformations of objects are restored to their original state.
+  - Editorial tools are included.
+
+================================================================================
+10. PERFORMANCE AND DEBUGGING
+================================================================================
+- Rendering statistics: the number of draw calls and triangles (in the Scene Settings window).
+- Visualization of colliders (in green), frustums, audio ranges, and light sources.
+- Output of errors and debugging messages to the console.
+
+================================================================================
+11. SERIALIZATION
+================================================================================
+- Scenes are saved in .bxlvl (JSON) with full information about objects, hierarchies,
+  components, editor settings.
+- Materials are saved in separate files .binaxmat (JSON) for reuse.
+- Animations are saved in .bxanim (JSON) with keyframes.
+- When loading a scene, all components are restored, including Lua scripts,
+animations, and physics.
+
+================================================================================
+12. SUPPORTED FORMATS
+================================================================================
+- Models: .obj, .fbx, .dae, .blend, .3ds, .stl (via Assimp).
+- Textures: .jpg, .png, .bmp (via stb_image).
+- Sounds: .wav, .mp3, .flac, .ogg (via miniaudio).
+- Scenes: .bxlvl (JSON).
+- Materials: .binaxmat (JSON).
+- Animations: .bxanim (JSON).
+- Scripts: .lua.
+
+================================================================================
+13. PLANNED IMPROVEMENTS (ROADMAP)
+================================================================================
+- Skeletal animation (importing bones from models).
+- The particle system.
+- Game UI (menu, buttons, text).
+- Physical materials (friction pairs).
+- Collision callbacks for Lua scripts (on_collision_enter, etc.).
+- Shader hot reset.
+- Integration of physics with animation (Ragdoll).
+- Multithreaded rendering.
+- Asynchronous resource loading.
+- Pause mode in the game.
+- Event system.
+
+================================================================================
+END OF FILE
+================================================================================
