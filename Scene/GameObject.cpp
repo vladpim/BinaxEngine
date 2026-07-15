@@ -10,8 +10,7 @@
 #include "Graphics/Primitives.h"
 #include "Graphics/Model.h"
 #include "Script/ScriptManager.h"
-#include "Animation/AnimationComponent.h"
-#include "Animation/AnimationClip.h"
+#include "Animation/Animation.h"
 
 void GameObject::AddAnimationComponent(std::shared_ptr<AnimationComponent> anim) {
     m_AnimationComponents.push_back(anim);
