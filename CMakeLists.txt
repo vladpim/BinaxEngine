@@ -120,9 +120,7 @@ set(SOURCES
     Scene/Frustum.cpp
     Scene/LuaScriptComponent.cpp
     Script/ScriptManager.cpp
-    Animation/AnimationKeyframe.cpp
-    Animation/AnimationClip.cpp
-    Animation/AnimationComponent.cpp
+    Animation/Animation.cpp
     Editor/EditorUI.cpp
     Physics/PhysicsWorld.cpp
     Audio/AudioEngine.cpp
