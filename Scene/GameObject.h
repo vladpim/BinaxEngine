@@ -9,8 +9,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include "Script/ScriptManager.h"
 #include "LuaScriptComponent.h"
-#include "Animation/AnimationComponent.h"
-#include "Animation/AnimationClip.h"
+#include "Animation/Animation.h"
 
 class btRigidBody;
 class btCollisionShape;
