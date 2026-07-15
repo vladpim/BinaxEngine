@@ -7,8 +7,7 @@
 #include "ImGuizmo.h"
 #include "EditorTheme.h"
 #include <nlohmann/json.hpp>
-#include "Animation/AnimationComponent.h"
-#include "Animation/AnimationClip.h"
+#include "Animation/Animation.h"
 
 class SceneManager;
 class GameObject;
