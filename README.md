@@ -122,7 +122,7 @@
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/VladPim/BinaxEngine.git
+git clone https://github.com/https://github.com/ckkskdkwoo1/BinaxEngine.git
 cd BinaxEngine
 ```
 
