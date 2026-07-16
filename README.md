@@ -4,10 +4,6 @@
 
 ---
 
-*(Developed and maintained by a 14‑year‑old developer passionate about low‑level systems and graphics)*
-
----
-
 ## Features
 
 ### Editor & Workflow
