@@ -978,8 +978,13 @@ bool GameObject::FromJson(const nlohmann::json& j) {
             }
         }
 
-        return true;
-    } catch (const std::exception& e) {
+    // Создаём коллизионную форму и физическое тело, если они были заданы
+    if (m_colliderType != COLLIDER_NONE) {
+        SetColliderType(m_colliderType);
+    }
+
+    return true;
+} catch (const std::exception& e) {
         std::cerr << "Error deserializing GameObject: " << e.what() << std::endl;
         return false;
     }
