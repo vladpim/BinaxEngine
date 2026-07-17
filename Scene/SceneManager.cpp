@@ -426,6 +426,15 @@ void SceneManager::ResetPhysics() {
     PhysicsWorld::GetInstance().ResetAllObjects();
 }
 
+void SceneManager::RecreatePhysicsBodies() {
+    for (auto& obj : m_Objects) {
+        if (obj->GetColliderType() != COLLIDER_NONE) {
+            obj->UpdatePhysicsBody();
+        }
+    }
+    std::cout << "[SceneManager] All physics bodies recreated." << std::endl;
+}
+
 void SceneManager::RegisterForPhysicsReset(GameObject* obj) {
     PhysicsWorld::GetInstance().RegisterGameObject(obj);
 }
@@ -940,6 +949,9 @@ void SceneManager::StartPlay() {
     if (m_IsPlaying) return;
     m_IsPlaying = true;
 
+    // Принудительно пересоздаём все физические тела
+    RecreatePhysicsBodies();
+
     // Сохраняем начальные трансформы
     m_InitialPositions.clear();
     m_InitialRotations.clear();
@@ -950,14 +962,14 @@ void SceneManager::StartPlay() {
         m_InitialScales.push_back(obj->GetScale());
     }
 
-    // Включаем физику
+    // Включаем физическую симуляцию
     PhysicsWorld::GetInstance().SetSimulationActive(true);
 
     // Перезагружаем и запускаем все скрипты
     for (const auto& obj : m_Objects) {
         for (const auto& script : obj->GetScriptComponents()) {
-            script->Reload();   // <-- перечитываем файл с диска
-            script->Start();    // вызываем on_start
+            script->Reload();
+            script->Start();
         }
     }
 
