@@ -52,6 +52,7 @@ public:
     void UpdatePhysics(float deltaTime);
     void SetPhysicsActive(bool active);
     void ResetPhysics();
+    void RecreatePhysicsBodies();
     void RegisterForPhysicsReset(GameObject* obj);
     std::shared_ptr<GameObject> FindGameObjectByPtr(GameObject* ptr);
     // ===== НАСТРОЙКИ ТУМАНА =====
