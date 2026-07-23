@@ -211,21 +211,36 @@ void SceneManager::DeleteGameObject(GameObject* object) {
 
 void SceneManager::DuplicateSelectedObject() {
     if (!m_SelectedObject) return;
-    // Запрещаем дублировать DirectionalLight (можно и другие типы разрешить)
     if (m_SelectedObject->GetName() == "DirectionalLight") {
         std::cerr << "Cannot duplicate Directional Light" << std::endl;
         return;
     }
+
     auto newObj = CreateGameObject(m_SelectedObject->GetName() + " (Copy)");
-    newObj->SetMesh(m_SelectedObject->GetMesh());
+
+    // === Копируем информацию о меше ===
+    std::string meshSource = m_SelectedObject->GetMeshSourceType();
+    if (meshSource == "primitive") {
+        newObj->SetMeshFromPrimitive(m_SelectedObject->GetMeshPrimitiveType());
+    } else if (meshSource == "model") {
+        newObj->SetMeshFromModel(m_SelectedObject->GetMeshPath());
+    } else {
+        // Если источник не задан (например, старый объект), просто копируем указатель
+        newObj->SetMesh(m_SelectedObject->GetMesh());
+    }
+
+    // Копируем трансформацию (со смещением)
     newObj->SetPosition(m_SelectedObject->GetPosition() + glm::vec3(1.0f, 0.0f, 0.0f));
     newObj->SetRotation(m_SelectedObject->GetRotation());
     newObj->SetScale(m_SelectedObject->GetScale());
+
+    // Копируем цвет и материал
     newObj->SetColor(m_SelectedObject->GetColor());
     if (m_SelectedObject->GetMaterial()) {
         newObj->SetMaterial(m_SelectedObject->GetMaterial());
     }
-    // Копируем параметры света
+
+    // Копируем параметры света (если есть)
     newObj->SetLightType(m_SelectedObject->GetLightType());
     newObj->SetLightColor(m_SelectedObject->GetLightColor());
     newObj->SetLightIntensity(m_SelectedObject->GetLightIntensity());
@@ -233,6 +248,26 @@ void SceneManager::DuplicateSelectedObject() {
     newObj->SetLightAngle(m_SelectedObject->GetLightAngleDeg());
     newObj->SetLightDirection(m_SelectedObject->GetLightDirection());
 
+    // Копируем параметры физики (если есть)
+    if (m_SelectedObject->GetColliderType() != COLLIDER_NONE) {
+        newObj->SetColliderType(m_SelectedObject->GetColliderType());
+        newObj->SetMass(m_SelectedObject->GetMass());
+        if (m_SelectedObject->HasRigidBody()) {
+            newObj->AddRigidBody(m_SelectedObject->GetMass());
+        }
+        // Копируем параметры коллайдера (размеры, смещение)
+        newObj->SetColliderOffset(m_SelectedObject->GetColliderOffset());
+        if (m_SelectedObject->GetColliderType() == COLLIDER_BOX) {
+            newObj->SetColliderHalfExtents(m_SelectedObject->GetColliderHalfExtents());
+        } else if (m_SelectedObject->GetColliderType() == COLLIDER_SPHERE) {
+            newObj->SetColliderRadius(m_SelectedObject->GetColliderRadius());
+        } else if (m_SelectedObject->GetColliderType() == COLLIDER_CAPSULE) {
+            newObj->SetColliderRadius(m_SelectedObject->GetColliderRadius());
+            newObj->SetColliderHeight(m_SelectedObject->GetColliderHeight());
+        }
+    }
+
+    // Выделяем новый объект
     SetSelectedObject(newObj);
 }
 
