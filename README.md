@@ -15,6 +15,7 @@
 - **Content browser** – asset management (models, textures, shaders, audio files, Lua scripts, animations)
 - **Menu bar** – file operations (Save Scene, Load Scene), edit (duplicate, delete), view (wireframe, grid, gizmo, theme editor, VSync), physics (active physics, reset), skybox & shadows settings
 - **Hotkeys** – Ctrl+S (save current scene), Ctrl+O (load scene), Ctrl+D (duplicate), Delete (remove object), G (toggle grid), T/R/E (gizmo mode), X (gizmo local/world), ESC (release mouse)
+- **Game Mode** – run your game as a standalone executable: `BinaxEngine.exe --game scene.bxlvl` – no editor UI, fullscreen game loop with physics, scripts, and animations
 
 ### Graphics & Rendering
 - **OpenGL 3.3 core profile** with seamless cubemap support
@@ -33,6 +34,14 @@
 - **Fog** – linear, exponential, exponential squared with adjustable color, density, start/end distance
 - **Volumetric light shafts** for Spot Lights (fake volumetric cone) with adjustable intensity, softness, density
 
+### Resource Management
+- **Centralized ResourceManager** – singleton that caches textures, meshes, materials, and sounds
+- **Automatic deduplication** – loading the same asset multiple times returns the cached instance
+- **Memory efficient** – avoids duplicate texture/mesh loading across objects
+- **Lazy loading** – resources are loaded only when first requested
+- **Bulk clearing** – release all resources with a single call (useful for scene transitions)
+- **Integration with Material** – textures are loaded through ResourceManager for consistency
+
 ### Audio (miniaudio)
 - **2D / 3D spatial audio** – distance attenuation, listener follows active camera
 - **Audio Source component** – add/remove via "Add Component" menu
@@ -50,6 +59,7 @@
 - **Physics controls** – "Active Physics" toggle, "Return" reset to initial positions
 - **Real‑time synchronization** – transforms updated automatically
 - **Collider visualization** – green wireframe gizmos (toggleable per object)
+- **Auto‑respawn on Play** – physics bodies are automatically recreated when entering Play Mode (fixes stale physics state after scene load)
 
 ### Scripting (Lua + sol2)
 - **Full Lua integration** via sol2 library
@@ -97,6 +107,7 @@
 - **Complete scene save/load** – objects, hierarchy, transforms, meshes (primitive or model), PBR materials, lights, cameras, physics bodies, audio sources, fog, Lua scripts, animations
 - **Embedded editor settings** – VSync, snap increments, shadow configs, background color, ambient strength – all stored inside the scene file (no separate config)
 - **Smart workflows** – Ctrl+S overwrites the current scene without dialogs; "Save As" and "Load" via native file picker
+- **Mesh persistence** – primitive types (cube, sphere, etc.) and model paths are saved and restored correctly, even after duplication
 
 ### Play Mode
 - **Play/Stop toggle** – seamlessly switch between editing and gameplay
@@ -105,6 +116,7 @@
 - **Animation playback** – all Animation components are updated every frame
 - **Transform reset** – objects return to their pre‑Play positions, rotations, and scales
 - **Editor tools disabled** – gizmo, grid, and selection are hidden during Play Mode
+- **Stable physics** – physics bodies are recreated on Play start to ensure consistent behavior after scene loading
 
 ---
 
@@ -122,7 +134,7 @@
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/https://github.com/ckkskdkwoo1/BinaxEngine.git
+git clone https://github.com/https://github.com/vladpim/BinaxEngine.git
 cd BinaxEngine
 ```
 
@@ -162,9 +174,20 @@ The executable will be located at `build/Release/BinaxEngine.exe`.
 
 ### 5. Run
 
+#### Editor Mode (default)
 ```bash
 cd Release
 BinaxEngine.exe
+```
+
+#### Game Mode (standalone game)
+```bash
+BinaxEngine.exe --game your_scene.bxlvl
+```
+
+#### Help
+```bash
+BinaxEngine.exe --help
 ```
 
 ---
@@ -179,6 +202,7 @@ BinaxEngine.exe
 6. **Write script** – create `.lua` file, add Lua Script component, load the file
 7. **Play** – click Play button to test your game
 8. **Stop** – click Stop to return to editing
+9. **Build game** – create your scene, save it, then run: `BinaxEngine.exe --game scene.bxlvl`
 
 ---
 
@@ -217,10 +241,10 @@ BinaxEngine is released under the **MIT License**. See [LICENSE](LICENSE) for de
 
 ## Roadmap (Planned Features)
 
-- Skeletal animation (bone import from models)
+- ✅ Skeletal animation (planned for future)
 - Particle system
 - In‑game UI (menus, buttons, text)
-- Physics collision callbacks for Lua (on_collision_enter, on_collision_exit)
+- Physics collision callbacks for Lua (`on_collision_enter`, `on_collision_exit`)
 - Hot shader reloading
 - Multi‑threaded rendering
 - Asynchronous asset loading
@@ -228,5 +252,5 @@ BinaxEngine is released under the **MIT License**. See [LICENSE](LICENSE) for de
 - Event system
 - Per‑object physics materials (friction/restitution pairs)
 - Undo/Redo (Ctrl+Z / Ctrl+Y)
-
+- Resource packing – combine all assets into a single binary file for distribution
 ```
