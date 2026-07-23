@@ -18,18 +18,14 @@
 #include <windows.h>
 #include <shellapi.h>
 #include "Script/ScriptManager.h"
+#include "Input/InputManager.h"
 
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
-
 SceneManager g_SceneManager;
 EditorUI g_EditorUI;
-
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
-bool firstMouse = true;
-bool mouseCaptured = false;
-
 Shader shader;
 Shader gridShader;
 Shader gizmoShader;
@@ -38,17 +34,14 @@ Shader depthShader;
 Shader screenFogShader;
 Skybox skybox;
 unsigned int envCubemap = 0; // глобальная для обоих режимов
-
 unsigned int depthMapFBO;
 unsigned int depthMap;
 unsigned int SHADOW_WIDTH = 4096;
 unsigned int SHADOW_HEIGHT = 4096;
-
 unsigned int framebuffer;
 unsigned int sceneTexture;
 unsigned int depthTexture;
 unsigned int quadVAO, quadVBO;
-
 // Прототипы
 void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -165,9 +158,9 @@ int main() {
         return -1;
     }
     glfwMakeContextCurrent(window);
+    InputManager::Init(window);
     glfwSwapInterval(1);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, key_callback);
 
@@ -199,7 +192,7 @@ int main() {
     }
     g_EditorUI.SetSkybox(&skybox);
 
-    if (!ScriptManager::GetInstance().Initialize(&g_SceneManager)) {
+    if (!ScriptManager::GetInstance().Initialize(&g_SceneManager, window)) {
         std::cerr << "Failed to initialize ScriptManager" << std::endl;
         return -1;
     }
@@ -255,16 +248,38 @@ int main() {
         static bool rightMousePressed = false;
         bool rightDown = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
         if (rightDown && !rightMousePressed && g_EditorUI.IsViewportHovered() && !g_EditorUI.IsGizmoActive()) {
-            mouseCaptured = true;
-            firstMouse = true;
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            InputManager::SetMouseCaptured(true);
             rightMousePressed = true;
         } else if (!rightDown && rightMousePressed) {
-            mouseCaptured = false;
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            InputManager::SetMouseCaptured(false);
             rightMousePressed = false;
         }
         g_EditorUI.HandleShortcuts();
+
+        // Обновление ввода (получение дельты мыши и т.д.)
+        InputManager::Update();
+
+        // Обработка вращения камеры, если мышь захвачена
+        if (InputManager::IsMouseCaptured() && !g_EditorUI.IsGizmoActive()) {
+            glm::vec2 delta = InputManager::GetMouseDelta();
+            float sensitivity = 0.1f;
+            float xoffset = delta.x * sensitivity;
+            float yoffset = delta.y * sensitivity;
+            g_SceneManager.RotateActiveCamera(-xoffset, -yoffset);  // <-- изменили знак у yoffset
+        }
+
+        // Обработка зума (колёсико мыши)
+        float wheelDelta = InputManager::GetMouseWheelDelta();
+        if (wheelDelta != 0.0f) {
+            auto activeCam = g_SceneManager.GetActiveCamera();
+            if (activeCam) {
+                float fov = activeCam->GetCameraFOV();
+                fov -= wheelDelta;
+                if (fov < 1.0f) fov = 1.0f;
+                if (fov > 120.0f) fov = 120.0f;
+                activeCam->SetCameraFOV(fov);
+            }
+        }
 
         auto& settings = g_EditorUI.GetSettings();
 
@@ -501,7 +516,7 @@ int main() {
 
 // ========== ФУНКЦИИ УПРАВЛЕНИЯ ==========
 void processInput(GLFWwindow* window) {
-    if (!mouseCaptured) return;
+    if (!InputManager::IsMouseCaptured()) return;
     if (g_EditorUI.IsGizmoActive()) return;
 
     float speed = 5.0f * deltaTime;
@@ -520,51 +535,16 @@ void processInput(GLFWwindow* window) {
     g_SceneManager.MoveActiveCamera(forward, right, up, speed);
 }
 
-void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-    if (!mouseCaptured) return;
-    if (g_EditorUI.IsGizmoActive()) return;
-
-    static float lastX = SCR_WIDTH / 2.0f;
-    static float lastY = SCR_HEIGHT / 2.0f;
-
-    if (firstMouse) {
-        lastX = (float)xpos;
-        lastY = (float)ypos;
-        firstMouse = false;
-        return;
-    }
-
-    float xoffset = (float)xpos - lastX;
-    float yoffset = lastY - (float)ypos;
-    lastX = (float)xpos;
-    lastY = (float)ypos;
-
-    float sensitivity = 0.1f;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    g_SceneManager.RotateActiveCamera(-xoffset, yoffset);
-}
-
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-    auto activeCam = g_SceneManager.GetActiveCamera();
-    if (activeCam) {
-        float fov = activeCam->GetCameraFOV();
-        fov -= (float)yoffset;
-        if (fov < 1.0f) fov = 1.0f;
-        if (fov > 120.0f) fov = 120.0f;
-        activeCam->SetCameraFOV(fov);
-    }
+    InputManager::AddMouseWheelDelta((float)yoffset);
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-        if (mouseCaptured) {
-            mouseCaptured = false;
-            firstMouse = true;
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        }
+if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+    if (InputManager::IsMouseCaptured()) {
+        InputManager::SetMouseCaptured(false);
     }
+}
     if (key == GLFW_KEY_DELETE && action == GLFW_PRESS) {
         auto selected = g_SceneManager.GetSelectedObject();
         if (selected) g_SceneManager.DeleteGameObject(selected.get());
@@ -630,11 +610,7 @@ glm::mat4 calculateLightSpaceMatrix(const glm::vec3& lightDir, const glm::mat4& 
 // ===== ИГРОВОЙ ЦИКЛ (полная копия редакторского, без ImGui и гимо) =====
 void RunGameLoop(GLFWwindow* window) {
     std::cout << "[Game] Starting game loop..." << std::endl;
-
-    // Принудительно захватываем мышь
-    mouseCaptured = true;
-    firstMouse = true;
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    InputManager::SetMouseCaptured(true);
 
     // Отключаем редакторские элементы (как в PlayMode)
     auto& settings = g_EditorUI.GetSettings();
