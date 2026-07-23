@@ -3,13 +3,15 @@
 #include <memory>
 #include <string>
 
+struct GLFWwindow;   // <-- forward declaration
+
 class SceneManager;
 
 class ScriptManager {
 public:
     static ScriptManager& GetInstance();
 
-    bool Initialize(SceneManager* sceneManager);
+    bool Initialize(SceneManager* sceneManager, GLFWwindow* window);
     void Shutdown();
 
     bool LoadScript(const std::string& filePath);
@@ -27,5 +29,6 @@ private:
 
     sol::state m_LuaState;
     SceneManager* m_SceneManager = nullptr;
+    GLFWwindow* m_Window = nullptr;
     bool m_Initialized = false;
 };
