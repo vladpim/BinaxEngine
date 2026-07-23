@@ -1,6 +1,7 @@
 #include "ScriptManager.h"
 #include "Scene/SceneManager.h"
 #include "Scene/GameObject.h"
+#include "Input/InputManager.h"
 #include <iostream>
 #include <filesystem>
 
@@ -9,18 +10,16 @@ ScriptManager& ScriptManager::GetInstance() {
     return instance;
 }
 
-bool ScriptManager::Initialize(SceneManager* sceneManager) {
+bool ScriptManager::Initialize(SceneManager* sceneManager, GLFWwindow* window) {
     if (m_Initialized) return true;
     m_SceneManager = sceneManager;
+    m_Window = window;
 
     try {
         m_LuaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::table,
                                   sol::lib::string, sol::lib::os, sol::lib::io);
 
         RegisterBindings();
-
-        // Путь для поиска скриптов
-        // m_LuaState.script("package.path = './scripts/?.lua;' .. package.path");
 
         m_Initialized = true;
         std::cout << "[ScriptManager] Initialized successfully." << std::endl;
@@ -76,6 +75,16 @@ void ScriptManager::RegisterBindings() {
         sol::meta_function::multiplication, [](const glm::vec3& a, float s) { return a * s; }
     );
 
+        // Регистрируем glm::vec2
+    lua.new_usertype<glm::vec2>("Vec2",
+        sol::constructors<glm::vec2(), glm::vec2(float, float)>(),
+        "x", &glm::vec2::x,
+        "y", &glm::vec2::y,
+        sol::meta_function::addition, [](const glm::vec2& a, const glm::vec2& b) { return a + b; },
+        sol::meta_function::subtraction, [](const glm::vec2& a, const glm::vec2& b) { return a - b; },
+        sol::meta_function::multiplication, [](const glm::vec2& a, float s) { return a * s; }
+    );
+
     // Регистрируем GameObject
     lua.new_usertype<GameObject>("GameObject",
         "GetName", &GameObject::GetName,
@@ -110,6 +119,29 @@ void ScriptManager::RegisterBindings() {
 
     lua.set_function("Print", [](const std::string& msg) {
         std::cout << "[Lua] " << msg << std::endl;
+    });
+
+        // ===== ВВОД =====
+    lua.set_function("IsKeyPressed", [](const std::string& key) -> bool {
+        return InputManager::IsKeyPressed(key);
+    });
+    lua.set_function("IsMouseButtonPressed", [](const std::string& button) -> bool {
+        return InputManager::IsMouseButtonPressed(button);
+    });
+    lua.set_function("GetMousePosition", []() -> glm::vec2 {
+        return InputManager::GetMousePosition();
+    });
+    lua.set_function("GetMouseDelta", []() -> glm::vec2 {
+        return InputManager::GetMouseDelta();
+    });
+    lua.set_function("GetMouseWheelDelta", []() -> float {
+        return InputManager::GetMouseWheelDelta();
+    });
+    lua.set_function("IsMouseCaptured", []() -> bool {
+        return InputManager::IsMouseCaptured();
+    });
+    lua.set_function("SetMouseCaptured", [](bool captured) {
+        InputManager::SetMouseCaptured(captured);
     });
 
     // Пример доступа к настройкам сцены (ambient, etc.)
