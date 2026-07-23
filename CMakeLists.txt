@@ -124,6 +124,7 @@ set(SOURCES
     Editor/EditorUI.cpp
     Physics/PhysicsWorld.cpp
     Audio/AudioEngine.cpp
+    Input/InputManager.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
